@@ -1,9 +1,8 @@
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Windows;
-using static SensorsInterface.NativeMethods;
+using static SensorsInterface.Native.NativeMethods;
+using static SensorsInterface.Helpers.Error;
 
-namespace SensorsInterface.Devices;
+namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima : Device
 {
@@ -13,174 +12,227 @@ public unsafe partial class NeurobitOptima : Device
 	protected override string DriverPath => $@"..\..\..\Drivers\Neurobit Optima\{DriverName}";
 
 	const string DefaultConfigName = "Default.cfg";
+	private DevContextInfo devInfo;
+	private static bool[] channelsEnable = new bool[MAX_SIGNALS];
+	private static short channelsNumber;
+	private static NDGETVAL getter;
+	private static NDSETVAL setter;
+	private string value;
 
-	public NeurobitOptima(string configFileName = DefaultConfigName)
+	private DevContextInfo* dev;
+
+	private static Dictionary<string, (string, string, string)> gettersAssocations = new()
 	{
-		IntPtr library = LoadLibrary(DriverPath);
-		int channels;
-		DevContextInfo devInfo = new DevContextInfo
+		//AsciiWriteHeader
+		{ "ChannelsNumber", ("ND_PAR_CHAN_NUM", "ND_T_LIST", "ND_T_INT") },
+		{ "ChannelsEnable", ("ND_PAR_CH_EN", "ND_T_LIST", "ND_T_BOOL") },
+		//Read
+		{ "Channel", ("ND_PAR_CH_NAME", "ND_T_LIST", "ND_T_TEXT") },
+		{ "Min", ("ND_PAR_CH_RANGE_MIN", "ND_T_LIST", "ND_T_FLOAT") },
+		{ "Max", ("ND_PAR_CH_RANGE_MAX", "ND_T_LIST", "ND_T_FLOAT") },
+		{ "SR", ("ND_PAR_CH_SR", "ND_T_LIST", "ND_T_FLOAT") },
+		{ "Label", ("ND_PAR_CH_LABEL", "ND_T_LIST", "ND_T_TEXT") },
+		{ "Sensor", ("ND_PAR_CH_TRANSDUCER", "ND_T_LIST", "ND_T_TEXT") },
+	};
+
+	public override ErrorCode Initialize()
+	{
+		/*State = DeviceState.Initialized;
+		return ErrorCode.Success;*/
+		nint library = LoadLibrary(DriverPath);
+		devInfo = new DevContextInfo
 		{
-			model = DeviceName
+			model = DeviceName, coeff = new float[MAX_SIGNALS]
 		};
+		//dev = &devInfo;
 		int err = GetLastError();
 		Console.WriteLine(err);
-		if (library == 0x0)
-		{
-			MessageBox.Show($"Nie udało się wczytać biblioteki {DriverName}.", DeviceName);
-		}
 
-		//if ((DeviceContext = ReadCfgFile(configFileName)) < 0)
+		if (library == 0x0)
+			return ErrorCode.LibraryNotLoaded;
+
+		/*if ((DeviceContext = ReadCfgFile(DefaultConfigName)) < 0)
 		{
-			/* Cannot read last configuration.
-				Open context for default device. */
-			//Console.WriteLine($"Failed. Error Code : {GetLastError()});
+			/*Cannot read last configuration.
+				Open context for default device. #1#
 			devInfo.deviceContext = NdOpenDevContext(DeviceName);
 			if (devInfo.deviceContext < 0)
 			{
-				MessageBox.Show("Nie można otworzyć urządzenia", DeviceName, MessageBoxButton.OK,
-					MessageBoxImage.Error);
 				FreeLibrary(library);
+				return ErrorCode.DeviceNotOpen;
 			}
-		}
-		NDGETVAL getter;
-		NDSETVAL setter;
+		}*/
 		/* Get number of channels */
-		if (NdGetParam(ParameterId("ND_PAR_CHAN_NUM"), 0, &getter) <= 0)
-		{
-			MessageBox.Show("Nie można pobrać liczby kanałów", DeviceName, MessageBoxButton.OK,
-				MessageBoxImage.Error);
-		}
+		if (NdGetParam(ParameterId("ND_PAR_CHAN_NUM"), 0, out getter) < 0)
+			return ErrorCode.DeviceChannelsNotGet;
 
-		channels = getter.val.i;
+		int channels = getter.val.i;
+
+#if DEBUG
+		channels = SignalsNames.Count;
+#endif
 
 		/* Example of automatic device configuration:
 		Enable all versatile channels and set "EEG" profile for them. */
 		setter.val.b = true;
-		channels &= ~1; /* Even number of channels will be used in this example */
-		List<string> channelsName = ["EEG"];
+		//channels &= ~1; /* Even number of channels will be used in this example #1#
+
 		for (short i = 0; i < channels; i++)
 		{
-			if (NdSetParam(ParameterId("ND_PAR_CH_EN"), i, &setter) < 0)
-			{
-				/* Device parameter can be set with NdSetParam... */
-				MessageBox.Show("Nie można pobrać uruchomić kanału", DeviceName, MessageBoxButton.OK,
-					MessageBoxImage.Error);
-			}
+			if (NdSetParam(ParameterId("ND_PAR_CH_EN"), i, out setter) < 0)
+				return ErrorCode.DeviceChannelNotRun;
 
-			if (NdStr2Param(channelsName[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
-			{
-				/* ...or with NdStr2Param function */
-				MessageBox.Show("Nie można ustawić profilu", DeviceName, MessageBoxButton.OK,
-					MessageBoxImage.Error);
-			}
+			if (NdStr2Param(SignalsNames[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
+				return ErrorCode.DeviceProfileNotSet;
 		}
+
 		/* Write data header for the device and prepare info for sample processing */
-		AsciiWriteHeader(&devInfo);
+		AsciiWriteHeader(ref devInfo);
+		//return ErrorCode.Success;
+		///*
 		// Call into the native DLL, passing the managed callback
 		int code = NdStartMeasurement(1, TStartMeasurement.MeasurementMode.Normal);
-		if (code < 0)
-			MessageBox.Show("Nie można połączyć z urządzeniem", DeviceName);
-		if (code > 0)
-			MessageBox.Show("Nie można rozpocząć pomiarów", DeviceName);
+
+		return code switch
+		{
+			< 0 => ErrorCode.DeviceNotConnected,
+			> 0 => ErrorCode.DeviceMeasurementCannotStart,
+			0 => ErrorCode.Success
+		};
+		//*/
 	}
 
 	/* Write dump header. The function sets sample coefficients (int to real)
 	and names for individual channels in the *dev structure for further use.
 	Consecutive header columns are connected with consecutive signals.
 	It returns number of channels for success, or zero for error. */
-	static int AsciiWriteHeader(DevContextInfo* dev)
+	private int AsciiWriteHeader(ref DevContextInfo dev)
 	{
-		const int SIG_HEADER_LINES = 7;
-		//const char*  const SigHeaderNames [SIG_HEADER_LINES] =  {
-		string[] SigHeaderNames =
-		{
-			"Channel", "Min", "Max", "Unit", "SR", "Label", "Sensor"
-		};
-		//byte[] chan_en = new byte[MAX_SIGNALS];
-		bool[] chan_en = new bool[MAX_SIGNALS];
-		short i, l;
-		short chans; /* Number of channels */
-		short sig_num; /* Number of signals */
-		NDGETVAL v;
-
 		/* Set channel enable array and number of signals */
-		if (NdGetParam(ParameterId("ND_PAR_CHAN_NUM"), 0, &v) == 0 || (v.type & ~ParameterId("ND_T_LIST")) != ParameterId("ND_T_INT"))
+		if (!IsValueProperlyGet("ChannelsNumber", 0))
 			return 0;
-		chans = (short)v.val.i;
-		for (i = sig_num = 0; i < chans; i++)
+		channelsNumber = (short)getter.val.i;
+#if DEBUG
+		channelsNumber = (short)SignalsNames.Count;
+#endif
+		for (short i = 0; i < channelsNumber; i++)
 		{
-			if (chans > 1)
+			if (channelsNumber > 1)
 			{
-				if (NdGetParam(ParameterId("ND_PAR_CH_EN"), i, &v) == 0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_BOOL")))
+				if (!IsValueProperlyGet("ChannelsEnable", i))
 					return 0;
-				chan_en[i] = v.val.b;
+				channelsEnable[i] = getter.val.b;
 			}
 			else
-				chan_en[i] = true;
-
-			if (chan_en[i])
-				sig_num++;
+				channelsEnable[i] = true;
 		}
+
+		dev.dev_chans = channelsNumber;
+		return channelsNumber;
+	}
+
+	public override string Read()
+	{
+		bool foundError = false;
+		value = "";
+		//const char*  const SigHeaderNames [SIG_HEADER_LINES] =  {
+		List<string> signalHeaders = ["Channel", "Min", "Max", "Unit", "SR", "Label", "Sensor"];
 
 		/* Print sample array header */
-		for (l = 0; l < SIG_HEADER_LINES; l++)
+		foreach (string header in signalHeaders)
 		{
-			Console.WriteLine(SigHeaderNames[l]);
-			for (i = 0; i < chans; i++)
+			Console.WriteLine(header);
+			for (short i = 0; i < channelsNumber; i++)
 			{
-				NDPARAM* p;
-
-				if (!chan_en[i])
+				if (!channelsEnable[i])
 					continue;
-				Console.WriteLine("\t");
-				switch (l)
+
+				if (header != "Unit")
 				{
-					case 0:
-						if (NdGetParam(ParameterId("ND_PAR_CH_NAME"), i, &v)==0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_TEXT")))
-							return 0;
-						Console.WriteLine(v.val.t);
-						//Util.Memset(dev->names[i], 0, Marshal.SizeOf(dev->names[i]));
-						dev->names = v.val.t;
-						//strncpy(dev->names[i], v.val.t, Marshal.SizeOf(dev->names[i])-1);
+					if (!IsValueProperlyGet(header, i))
+					{
+						foundError = true;
+						continue;
+					}
+				}
+
+				switch (header)
+				{
+					case "Channel":
+						value += getter.val.t + ";";
+						dev->names = getter.val.t;
 						break;
-					case 1:
-						if (NdGetParam(ParameterId("ND_PAR_CH_RANGE_MIN"), i, &v)==0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_FLOAT")))
-							return 0;
-						Console.WriteLine(v.val.f);
+					case "Min":
+						value += getter.val.f + ";";
 						break;
-					case 2:
-						if (NdGetParam(ParameterId("ND_PAR_CH_RANGE_MAX"), i, &v)==0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_FLOAT")))
-							return 0;
-						Console.WriteLine(v.val.f);
-						dev->coeff[i] = v.val.f / 0x80000000ul;
+					case "Max":
+						value += getter.val.f + ";";
+						dev->coeff[i] = getter.val.f / 0x80000000ul;
 						break;
-					case 3:
-						p = NdParamInfo(ParameterId("ND_PAR_CH_RANGE_MAX"), i);
-						Console.WriteLine(p->unit);
+					case "Unit":
+						NDPARAM* p = NdParamInfo(ParameterId("ND_PAR_CH_RANGE_MAX"), i);
+						value += p->unit + ";";
 						break;
-					case 4:
-						if (NdGetParam(ParameterId("ND_PAR_CH_SR"), i, &v)==0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_FLOAT")))
-							return 0;
-						Console.WriteLine(v.val.f);
+					case "SR":
+						value += getter.val.f + ";";
 						break;
-					case 5:
-						if (NdGetParam(ParameterId("ND_PAR_CH_LABEL"), i, &v)==0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_TEXT")))
-							return 0;
-						Console.WriteLine(v.val.t);
+					case "Label":
+						value += getter.val.t + ";";
 						break;
-					case 6:
-						if (NdGetParam(ParameterId("ND_PAR_CH_TRANSDUCER"), i, &v)==0 || !((v.type & ~ParameterId("ND_T_LIST")) == ParameterId("ND_T_TEXT")))
-							return 0;
-						Console.WriteLine(v.val.t);
+					case "Sensor":
+						value += getter.val.t + ";";
 						break;
 				}
-			}
 
-			Console.WriteLine("\n");
+				if (foundError)
+				{
+					ShowMessageBox(ErrorCode.DeviceMeasurementReadError);
+					return $"Optima Error {header}";
+				}
+			}
 		}
 
-		dev->dev_chans = chans;
-		return chans;
+		Console.WriteLine(value + "\n");
+		return value;
+	}
+
+	public override string StandardizeValue()
+	{
+		//data
+		//wartość|typ
+		//
+		//;
+		StandardizedValue = $"{DateTime.Now}\n";
+		string[] channels = value.Split('\n');
+		StandardizedValue += "[";
+		int i = 0;
+		foreach (string channel in channels)
+		{
+			string[] split = channel.Split(';');
+			//zależy od read()
+			//Format- wartość;typ (czyli numer kanału),
+			StandardizedValue += $"{split[1]}|{i++}\n";
+		}
+
+		StandardizedValue += ";";
+		return StandardizedValue;
+	}
+
+	private static bool IsValueProperlyGet(string value, int channelNumber)
+	{
+		var tuple = gettersAssocations[value];
+
+#if DEBUG
+		return NdGetParam(ParameterId(tuple.Item1), channelNumber, out getter) != 0 ||
+		       (getter.type & ~TypeId(tuple.Item2)) != TypeId(tuple.Item3);
+#endif
+
+		return NdGetParam(ParameterId(tuple.Item1), channelNumber, out getter) == 0 ||
+		       (getter.type & ~TypeId(tuple.Item2)) == TypeId(tuple.Item3);
+
+		//Ten warunek sprawdzał czy jest niepoprawne
+		/*return NdGetParam(ParameterId(tuple.Item1), channelNumber, &getter) == 0 ||
+		       !((getter.type & ~ParameterId(tuple.Item2)) == ParameterId(tuple.Item3));*/
 	}
 
 	private int ReadCfgFile(string fileName)
@@ -190,9 +242,7 @@ public unsafe partial class NeurobitOptima : Device
 		string cf = "";
 		FileInfo fi = new FileInfo(fileName);
 		if (!fi.Exists)
-		{
 			File.Create(fileName);
-		}
 
 		try
 		{
@@ -223,6 +273,12 @@ public unsafe partial class NeurobitOptima : Device
 	private static short ParameterId(string parameter)
 	{
 		ParameterIds a = (ParameterIds)Enum.Parse(typeof(ParameterIds), parameter);
+		return (short)a;
+	}
+
+	private static short TypeId(string type)
+	{
+		TypeIds a = (TypeIds)Enum.Parse(typeof(TypeIds), type);
 		return (short)a;
 	}
 }

@@ -9,4 +9,8 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="System.Management" Version="9.0.0-preview.3.24172.9" />
+    </ItemGroup>
+
 </Project>

@@ -2,14 +2,15 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 
-namespace SensorsInterface;
+namespace SensorsInterface.Native;
 
 public class Util
 {
 	static Util()
 	{
-		var dynamicMethod = new DynamicMethod("Memset", MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard,
-			null, new [] { typeof(IntPtr), typeof(byte), typeof(int) }, typeof(Util), true);
+		var dynamicMethod = new DynamicMethod("Memset", MethodAttributes.Public | MethodAttributes.Static,
+			CallingConventions.Standard,
+			null, new[] { typeof(IntPtr), typeof(byte), typeof(int) }, typeof(Util), true);
 
 		var generator = dynamicMethod.GetILGenerator();
 		generator.Emit(OpCodes.Ldarg_0);
@@ -30,7 +31,7 @@ public class Util
 
 	public static void ForMemset(byte[] array, byte what, int length)
 	{
-		for(var i = 0; i < length; i++)
+		for (int i = 0; i < length; i++)
 		{
 			array[i] = what;
 		}

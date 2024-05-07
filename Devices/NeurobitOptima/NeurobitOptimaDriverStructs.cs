@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace SensorsInterface.Devices;
+namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima
 {
@@ -15,10 +15,12 @@ public unsafe partial class NeurobitOptima
 	public static extern int NdSetDevConfig(int deviceContext, char[] buf, int size);
 
 	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
-	public static extern int NdGetParam(short parameter, int channel, NDGETVAL* value);
+	public static extern int NdGetParam(short parameter, int channel, out NDGETVAL value);
+	//stare
+	//public static extern int NdGetParam(short parameter, int channel, NDGETVAL* value);
 
 	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
-	public static extern int NdSetParam(short parameter, int channel, NDSETVAL* value);
+	public static extern int NdSetParam(short parameter, int channel, out NDSETVAL value);
 
 	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
 	public static extern int NdStr2Param([MarshalAs(UnmanagedType.LPStr)] string s, short parameterId, short space);
@@ -32,10 +34,10 @@ public unsafe partial class NeurobitOptima
 	/* Offset of numeric id. space for channel parameters */
 	private const uint ND_PAR_CH = ND_MAX_PARAMS / 2;
 
-/* Max. number of output measured signals handled in the application */
+	/* Max. number of output measured signals handled in the application */
 	private const int MAX_SIGNALS = 16;
 
-	public struct DevContextInfo
+	public class DevContextInfo
 	{
 		/* Device context */
 		public int deviceContext;
@@ -47,11 +49,10 @@ public unsafe partial class NeurobitOptima
 		public int dev_chans;
 
 		/* Array of sample scaling factors */
-		public fixed float coeff[MAX_SIGNALS];
+		public float[] coeff;
 
 		/* Channel names to print */
-		[MarshalAs(UnmanagedType.LPStr)]
-		public string names;
+		[MarshalAs(UnmanagedType.LPStr)] public string names;
 	}
 
 	public struct NDGETVAL
@@ -66,22 +67,30 @@ public unsafe partial class NeurobitOptima
 		public byte type;
 	}
 
-	[StructLayout(LayoutKind.Explicit)]
+	//[StructLayout(LayoutKind.Explicit)]
 	public struct NDVAL
 	{
-		[FieldOffset(0)] public int i;
-		[FieldOffset(0)] public bool b;
-		[FieldOffset(0)] public float f;
+		//[FieldOffset(0)]
+		public int i;
 
-		[FieldOffset(0)] [MarshalAs(UnmanagedType.LPStr)]
+		//[FieldOffset(0)]
+		public bool b;
+
+		//[FieldOffset(0)]
+		public float f;
+
+		//[FieldOffset(24)]
+		//[MarshalAs(UnmanagedType.LPStr)]
 		public string t;
 	}
 
-	[StructLayout(LayoutKind.Explicit)]
+	//[StructLayout(LayoutKind.Explicit)]
 	public struct NDSETVAL
 	{
-		[FieldOffset(0)] public uint opt;
-		[FieldOffset(0)] public NDVAL val;
+		//[FieldOffset(0)] 
+		public uint opt;
+		//[FieldOffset(0)] 
+		public NDVAL val;
 	}
 
 	/* Option of a list */
@@ -234,5 +243,17 @@ public unsafe partial class NeurobitOptima
 		/* <- new channel parameters can be added here */
 
 		ND_CHAN_PAR_END /* Have to be at the end of general parameter list */
+	}
+
+	public enum TypeIds
+	{
+		ND_T_BOOL,
+		ND_T_INT,
+		ND_T_FLOAT,
+		ND_T_TEXT,
+
+		ND_BASE_TYPES,	/* Number of base types. Have to be at the end! */
+	
+		ND_T_LIST=0x80 /* Flag of list of base type values */
 	}
 }

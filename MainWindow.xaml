@@ -6,7 +6,24 @@
         xmlns:local="clr-namespace:SensorsInterface"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid>
-
-    </Grid>
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="25"/>
+			<RowDefinition Height="*"/>
+		</Grid.RowDefinitions>
+		<TextBlock Grid.Row="0" Text="Nie podłączono żadnego urządzenia" Width="320" Name="FoundDeviceVisibility" />
+		<ListBox Grid.Row="1" Name="DevicesListBox" DataContext="{Binding Devices}" d:DataContext="{d:Devices }">
+			<ListBox.ItemTemplate>
+				<DataTemplate>
+					<StackPanel Orientation="Horizontal">
+						<Canvas>
+							<Ellipse Fill="{Binding StateColor}" Width="100" Height="100" />
+							<TextBlock Text="{Binding DeviceName}" Width="320" />
+							<TextBlock Text="{Binding DriverName}" Width="320" />
+						</Canvas>
+					</StackPanel>
+				</DataTemplate>
+			</ListBox.ItemTemplate>
+		</ListBox>
+	</Grid>
 </Window>

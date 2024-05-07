@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace SensorsInterface;
+namespace SensorsInterface.Native;
 
 public static class NativeMethods
 {
