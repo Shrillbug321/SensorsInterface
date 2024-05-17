@@ -6,7 +6,8 @@ namespace SensorsInterface.Devices;
 public abstract class Device
 {
 	public virtual string DeviceName { get; set; } = "Device Name";
-	public abstract List<string> SignalsNames { get; set; }
+	public abstract List<string> AvailableSignals { get; set; }
+	public abstract List<string> Signals { get; set; }
 	public Dictionary<string, double> SignalsValues { get; } = [];
 
 	public string StandardizedValue { get; protected set; } = "";
@@ -45,7 +46,7 @@ public abstract class Device
 	
 	protected Device()
 	{
-		foreach (string signalName in SignalsNames)
+		foreach (string signalName in AvailableSignals)
 		{
 			SignalsValues.Add(signalName, 0.0);
 		}
@@ -56,4 +57,6 @@ public abstract class Device
 	public abstract string Read();
 
 	public abstract string StandardizeValue();
+
+	public abstract void Close();
 }

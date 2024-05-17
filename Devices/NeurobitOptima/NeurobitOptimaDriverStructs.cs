@@ -27,6 +27,15 @@ public unsafe partial class NeurobitOptima
 
 	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
 	public static extern NDPARAM* NdParamInfo(short par, short chan);
+	
+	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
+	public static extern int NdProtocolEngine();
+	
+	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
+	public static extern int NdStopMeasurement(int deviceContext);
+	
+	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
+	public static extern int NdCloseDevContext(int deviceContext);
 
 	/* Maximum number of parameters */
 	private const uint ND_MAX_PARAMS = 0x100u;

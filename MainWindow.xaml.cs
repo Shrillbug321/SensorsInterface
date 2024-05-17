@@ -42,20 +42,29 @@ public partial class MainWindow
 		Devices.Add(new NeurobitOptima());
 		GetConnectedDevices();
 		InitializeDevices();
+		Closing += (sender, args) =>
+		{
+			foreach (Device device in Devices)
+			{
+				device.Close();
+			}
+		};
 		
-		/*DevicesListBox.DataContext = Devices;
-		DevicesListBox.ItemsSource = Devices;*/
+		DevicesListBox.DataContext = Devices;
+		DevicesListBox.ItemsSource = Devices;
+		if (Devices.Count > 0)
+			FoundDeviceVisibility.Text = "";
 		
-		/*Task.Run(() =>
+		Task.Run(() =>
 		{
 			while (true)
 			{
 				GetConnectedDevices();
                 InitializeDevices();
 				ReadFromDevices();
-				SendToVR();
+				//SendToVR();
 			}
-		});*/
+		});
 	}
 
 	private void CreatePipe()
@@ -79,7 +88,7 @@ public partial class MainWindow
 			if (device != null && !Devices.Contains(device))
 				Devices.Add(device);
 		}
-		FoundDeviceVisibility.Visibility = Devices.Count == 0 ? Visibility.Visible : Visibility.Hidden;
+		//FoundDeviceVisibility.Visibility = Devices.Count == 0 ? Visibility.Visible : Visibility.Hidden;
 	}
 	
 	private void InitializeDevices(bool onlyNew = true)

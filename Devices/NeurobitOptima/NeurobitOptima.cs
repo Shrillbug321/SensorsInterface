@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows;
 using static SensorsInterface.Native.NativeMethods;
 using static SensorsInterface.Helpers.Error;
 
@@ -6,7 +7,8 @@ namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima : Device
 {
-	public override List<string> SignalsNames { get; set; } = ["EKG", "RestTemp"];
+	public override List<string> AvailableSignals { get; set; } = ["EKG", "RestTemp"];
+	public override List<string> Signals { get; set; } = [];
 	public override string DeviceName { get; set; } = "Neurobit Optima+ 4 USB";
 	protected override string DriverName => "NeurobitDrv64.dll";
 	protected override string DriverPath => $@"..\..\..\Drivers\Neurobit Optima\{DriverName}";
@@ -69,7 +71,7 @@ public unsafe partial class NeurobitOptima : Device
 		int channels = getter.val.i;
 
 #if DEBUG
-		channels = SignalsNames.Count;
+		channels = AvailableSignals.Count;
 #endif
 
 		/* Example of automatic device configuration:
@@ -82,7 +84,7 @@ public unsafe partial class NeurobitOptima : Device
 			if (NdSetParam(ParameterId("ND_PAR_CH_EN"), i, out setter) < 0)
 				return ErrorCode.DeviceChannelNotRun;
 
-			if (NdStr2Param(SignalsNames[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
+			if (NdStr2Param(AvailableSignals[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
 				return ErrorCode.DeviceProfileNotSet;
 		}
 
@@ -93,15 +95,22 @@ public unsafe partial class NeurobitOptima : Device
 		// Call into the native DLL, passing the managed callback
 		int code = NdStartMeasurement(1, TStartMeasurement.MeasurementMode.Normal);
 
-		return code switch
+		return ErrorCode.Success;
+
+		/*return code switch
 		{
 			< 0 => ErrorCode.DeviceNotConnected,
 			> 0 => ErrorCode.DeviceMeasurementCannotStart,
 			0 => ErrorCode.Success
-		};
+		};*/
 		//*/
 	}
 
+	/*public ErrorCode SetSignals(List<string> signals)
+	{
+		
+	}*/
+	
 	/* Write dump header. The function sets sample coefficients (int to real)
 	and names for individual channels in the *dev structure for further use.
 	Consecutive header columns are connected with consecutive signals.
@@ -113,7 +122,7 @@ public unsafe partial class NeurobitOptima : Device
 			return 0;
 		channelsNumber = (short)getter.val.i;
 #if DEBUG
-		channelsNumber = (short)SignalsNames.Count;
+		channelsNumber = (short)AvailableSignals.Count;
 #endif
 		for (short i = 0; i < channelsNumber; i++)
 		{
@@ -198,11 +207,13 @@ public unsafe partial class NeurobitOptima : Device
 
 	public override string StandardizeValue()
 	{
+		StandardizedValue = $"{DateTime.Now}/" +
+		                    $"81|1";
 		//data
 		//wartość|typ
 		//
 		//;
-		StandardizedValue = $"{DateTime.Now}\n";
+		/*StandardizedValue = $"{DateTime.Now}\n";
 		string[] channels = value.Split('\n');
 		StandardizedValue += "[";
 		int i = 0;
@@ -212,10 +223,15 @@ public unsafe partial class NeurobitOptima : Device
 			//zależy od read()
 			//Format- wartość;typ (czyli numer kanału),
 			StandardizedValue += $"{split[1]}|{i++}\n";
-		}
+		}*/
 
-		StandardizedValue += ";";
-		return StandardizedValue;
+		return StandardizedValue += ";";
+	}
+
+	public override void Close()
+	{
+		NdStopMeasurement(devInfo.deviceContext);
+		NdCloseDevContext(devInfo.deviceContext);
 	}
 
 	private static bool IsValueProperlyGet(string value, int channelNumber)
