@@ -16,7 +16,11 @@ public static class Error
 		DeviceProfileNotSet,
 		DeviceNotConnected,
 		DeviceMeasurementCannotStart,
-		DeviceMeasurementReadError
+		DeviceMeasurementReadError,
+		PipeNotConnected,
+		SocketNotConnected,
+		RetrieveDataModeNotSelected,
+		SendDataModeNotSelected
 	}
 
 	public record MessageBoxElement
@@ -38,10 +42,15 @@ public static class Error
 		{ErrorCode.DeviceNotConnected, new MessageBoxElement {Text = "Nie można połączyć z urządzeniem"}},
 		{ErrorCode.DeviceMeasurementCannotStart, new MessageBoxElement {Text = "Nie można rozpocząć pomiarów"}},
 		{ErrorCode.DeviceMeasurementReadError, new MessageBoxElement {Text = "Nie można odczytać sygnału"}},
+		{ErrorCode.PipeNotConnected, new MessageBoxElement {Text = "Nie można połączyć z potokiem.\nPrawdopodobnie aplikacja odbierająca nie jest włączona lub nie używa potoku."}},
+		{ErrorCode.SocketNotConnected, new MessageBoxElement {Text = "Nie można połączyć z gniazdem.\nUpewnij się, że aplikacja odbierająca jest włączona oraz czy port nie jest zajęty."}},
+		{ErrorCode.RetrieveDataModeNotSelected, new MessageBoxElement {Text = "Nie można uruchomić urządzenia, gdy nie wybrano sposobu pobierania danych."}},
+		{ErrorCode.SendDataModeNotSelected, new MessageBoxElement {Text = "Nie wybrano sposobu wysyłania danych do aplikacji odbierającej.", Image = MessageBoxImage.Information}},
 	};
 
-	public static void ShowMessageBox(ErrorCode errorCode, string caption="", string format="")
+	public static MessageBoxResult ShowMessageBox(ErrorCode errorCode, string caption="", string format="")
 	{
+		if (errorCode == ErrorCode.Success) return MessageBoxResult.OK;
 		MessageBoxElement mbe = ErrorMessageBoxes[errorCode];
 		if (mbe.Text.Contains('{'))
 		{
@@ -53,6 +62,6 @@ public static class Error
 			}
 			mbe.Text = builder.ToString();
 		}
-		MessageBox.Show(mbe.Text, caption, mbe.Button, mbe.Image);
+		return MessageBox.Show(mbe.Text, caption, mbe.Button, mbe.Image);
 	}
 }

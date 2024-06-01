@@ -1,5 +1,7 @@
 using System.IO;
-using System.Windows;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using static SensorsInterface.Native.NativeMethods;
 using static SensorsInterface.Helpers.Error;
 
@@ -7,21 +9,31 @@ namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima : Device
 {
-	public override List<string> AvailableSignals { get; set; } = ["EKG", "RestTemp"];
-	public override List<string> Signals { get; set; } = [];
-	public override string DeviceName { get; set; } = "Neurobit Optima+ 4 USB";
+	public override List<string> SignalsAvailable { get; set; } =
+	[
+		"EEG", "EKG", "EOG", "HRV", "SCP", "RESP", "nIR_HEG", "pIR_HEG", "BMP", "GSR", "RESP_BELT", "RESP_TEMP", "BVP",
+		"EMG"
+	];
+
+	public override List<string> SignalsChosen { get; set; } = [];
+	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
+	public override string Name { get; set; } = "Neurobit Optima+ 4 USB";
+	public override string Code { get; set; } = "NeurobitOptima";
 	protected override string DriverName => "NeurobitDrv64.dll";
 	protected override string DriverPath => $@"..\..\..\Drivers\Neurobit Optima\{DriverName}";
 
 	const string DefaultConfigName = "Default.cfg";
 	private DevContextInfo devInfo;
-	private static bool[] channelsEnable = new bool[MAX_SIGNALS];
-	private static short channelsNumber;
+	//private static bool[] channelsEnable = new bool[MAX_SIGNALS];
+	private static bool[] channelsEnable = [true, true, true, true];
+	public int ChannelsNumber { get; set; }
 	private static NDGETVAL getter;
 	private static NDSETVAL setter;
 	private string value;
 
 	private DevContextInfo* dev;
+	private UdpClient udpClient;
+	private IPEndPoint remoteIpEndPoint;
 
 	private static Dictionary<string, (string, string, string)> gettersAssocations = new()
 	{
@@ -39,12 +51,13 @@ public unsafe partial class NeurobitOptima : Device
 
 	public override ErrorCode Initialize()
 	{
+		//InitSocket();
 		/*State = DeviceState.Initialized;
 		return ErrorCode.Success;*/
 		nint library = LoadLibrary(DriverPath);
 		devInfo = new DevContextInfo
 		{
-			model = DeviceName, coeff = new float[MAX_SIGNALS]
+			model = Name, coeff = new float[MAX_SIGNALS]
 		};
 		//dev = &devInfo;
 		int err = GetLastError();
@@ -57,60 +70,85 @@ public unsafe partial class NeurobitOptima : Device
 		{
 			/*Cannot read last configuration.
 				Open context for default device. #1#
-			devInfo.deviceContext = NdOpenDevContext(DeviceName);
+			devInfo.deviceContext = NdOpenDevContext(Name);
 			if (devInfo.deviceContext < 0)
 			{
 				FreeLibrary(library);
 				return ErrorCode.DeviceNotOpen;
 			}
 		}*/
+		ErrorCode code = GetChannelNumber();
+
+		if (code != ErrorCode.Success) return code;
+
+		return ErrorCode.Success;
+	}
+
+	public ErrorCode GetChannelNumber()
+	{
 		/* Get number of channels */
 		if (NdGetParam(ParameterId("ND_PAR_CHAN_NUM"), 0, out getter) < 0)
 			return ErrorCode.DeviceChannelsNotGet;
 
-		int channels = getter.val.i;
+		ChannelsNumber = getter.val.i;
 
 #if DEBUG
-		channels = AvailableSignals.Count;
+		ChannelsNumber = 4;
 #endif
 
 		/* Example of automatic device configuration:
 		Enable all versatile channels and set "EEG" profile for them. */
 		setter.val.b = true;
-		//channels &= ~1; /* Even number of channels will be used in this example #1#
 
-		for (short i = 0; i < channels; i++)
+		return ErrorCode.Success;
+	}
+
+	public override ErrorCode SetSignals(List<string> signals)
+	{
+		if (signals.Count > ChannelsNumber)
+			return ErrorCode.DeviceSignalListIsTooLong;
+
+		for (short i = 0; i < signals.Count; i++)
 		{
 			if (NdSetParam(ParameterId("ND_PAR_CH_EN"), i, out setter) < 0)
 				return ErrorCode.DeviceChannelNotRun;
 
-			if (NdStr2Param(AvailableSignals[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
+			if (NdStr2Param(signals[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
 				return ErrorCode.DeviceProfileNotSet;
 		}
 
 		/* Write data header for the device and prepare info for sample processing */
 		AsciiWriteHeader(ref devInfo);
-		//return ErrorCode.Success;
-		///*
-		// Call into the native DLL, passing the managed callback
+		return ErrorCode.Success;
+	}
+
+	public override ErrorCode StartMeasurement()
+	{
 		int code = NdStartMeasurement(1, TStartMeasurement.MeasurementMode.Normal);
 
-		return ErrorCode.Success;
-
-		/*return code switch
+		return code switch
 		{
 			< 0 => ErrorCode.DeviceNotConnected,
 			> 0 => ErrorCode.DeviceMeasurementCannotStart,
 			0 => ErrorCode.Success
-		};*/
-		//*/
+		};
 	}
 
-	/*public ErrorCode SetSignals(List<string> signals)
+	/*private void InitSocket()
 	{
-		
+		udpClient = new();
+		remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 8054);
+		try
+		{
+			udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+			udpClient.Client.Bind(remoteIpEndPoint);
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine(e.ToString());
+		}
 	}*/
-	
+
 	/* Write dump header. The function sets sample coefficients (int to real)
 	and names for individual channels in the *dev structure for further use.
 	Consecutive header columns are connected with consecutive signals.
@@ -120,13 +158,13 @@ public unsafe partial class NeurobitOptima : Device
 		/* Set channel enable array and number of signals */
 		if (!IsValueProperlyGet("ChannelsNumber", 0))
 			return 0;
-		channelsNumber = (short)getter.val.i;
+		ChannelsNumber = (short)getter.val.i;
 #if DEBUG
-		channelsNumber = (short)AvailableSignals.Count;
+		ChannelsNumber = 4;
 #endif
-		for (short i = 0; i < channelsNumber; i++)
+		for (short i = 0; i < ChannelsNumber; i++)
 		{
-			if (channelsNumber > 1)
+			if (ChannelsNumber > 1)
 			{
 				if (!IsValueProperlyGet("ChannelsEnable", i))
 					return 0;
@@ -136,11 +174,16 @@ public unsafe partial class NeurobitOptima : Device
 				channelsEnable[i] = true;
 		}
 
-		dev.dev_chans = channelsNumber;
-		return channelsNumber;
+		dev.dev_chans = ChannelsNumber;
+		return ChannelsNumber;
 	}
 
-	public override string Read()
+	public void SetChannelState(int channelNumber, bool state)
+	{
+		channelsEnable[channelNumber] = state;
+	}
+
+	protected override string RetrieveFromDriver()
 	{
 		bool foundError = false;
 		value = "";
@@ -151,7 +194,7 @@ public unsafe partial class NeurobitOptima : Device
 		foreach (string header in signalHeaders)
 		{
 			Console.WriteLine(header);
-			for (short i = 0; i < channelsNumber; i++)
+			for (short i = 0; i < ChannelsNumber; i++)
 			{
 				if (!channelsEnable[i])
 					continue;
@@ -205,10 +248,50 @@ public unsafe partial class NeurobitOptima : Device
 		return value;
 	}
 
-	public override string StandardizeValue()
+	protected override string RetrieveFromNetwork()
 	{
-		StandardizedValue = $"{DateTime.Now}/" +
-		                    $"81|1";
+		IPEndPoint endPoint = IpEndPoints[retrievePort];
+		byte[] bytes = sockets[retrievePort].Receive(ref endPoint);
+		IpEndPoints[retrievePort] = endPoint;
+		value = Encoding.ASCII.GetString(bytes);
+		return value;
+	}
+
+	protected override void SendByPipe(string message)
+	{
+		pipeWriter.WriteLine(message);
+	}
+
+	protected override void SendByNetwork(string message)
+	{
+		byte[] sendBytes = Encoding.ASCII.GetBytes(message);
+		sockets[sendPort].Send(sendBytes, sendBytes.Length);
+	}
+
+	public override void ConvertValueToStandard()
+	{
+		string[] split = value.Split('@');
+		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
+		string[] channels = split[1].Split(';');
+		DateTime date2 = date.DateTime.AddHours(2);
+		Console.WriteLine(date2);
+		for (int j = 0; j < channels.Length; j++)
+		{
+			string[] s = channels[j].Split('=');
+			if (!channelsEnable[j]) continue; // || !SignalsChosen.Contains(s[0])) continue;
+			s[1] = s[1].Split('#')[0];
+			Signals[s[0]] = new Dictionary<DateTime, double>
+			{
+				{ date2, double.Parse(s[1]) }
+			};
+			Console.WriteLine($"{s[0]}={s[1]}");
+		}
+	}
+
+	public override string ConvertValueToStandardString()
+	{
+		/*StandardizedValue = $"{DateTime.Now}/" +
+		                    $"81|1";*/
 		//data
 		//wartość|typ
 		//
@@ -224,8 +307,21 @@ public unsafe partial class NeurobitOptima : Device
 			//Format- wartość;typ (czyli numer kanału),
 			StandardizedValue += $"{split[1]}|{i++}\n";
 		}*/
+		/*string[] split = value.Split('@');
+		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
+		string[] channels = split[1].Split(';');
+		for (int j = 0; j < channels.Length; j++)
+		{
+			if (!channelsEnable[j]) continue;
+			string[] s = channels[j].Split('=');
+			s[1] = s[1].Split('#')[0];
+			Signals[s[0]] = new Dictionary<DateTime, double>
+			{
+				{ date.DateTime, double.Parse(s[1]) }
+			};
+		}*/
 
-		return StandardizedValue += ";";
+		return Signals.ToString();
 	}
 
 	public override void Close()
@@ -271,16 +367,6 @@ public unsafe partial class NeurobitOptima : Device
 
 		if (cf.Length != fi.Length)
 			r = -2;
-		//(short dc, void *buf, dword size)
-		//cf = CreateFile(fname, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-		/*if (cf == INVALID_HANDLE_VALUE)
-			return -1;
-		if ((len=GetFileSize(cf, NULL)) == -1)
-			r = -2;*/
-		// else if (!(buf=malloc(len)))
-		// 	r = -3;
-		// else if (!ReadFile(cf, buf, len, &n, NULL) || len!=n)
-		// 	r = -4;
 		else if (NdSetDevConfig(-1, buf, cf.Length) < 0)
 			r = -5;
 		return r;
