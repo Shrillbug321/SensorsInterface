@@ -17,7 +17,7 @@ public class Global
 		if (Instance != null)
 			return;
 		Instance = this;
-		Task.Run(() =>
+		/*Task.Run(() =>
 		{
 			Process[] pname;
 			while (true)
@@ -26,17 +26,21 @@ public class Global
 				IsRunVRTherapy = pname.Length > 0;
 				Task.Delay(5000);
 			}
-		});
-		Task.Run(() =>
+		});*/
+		//Task.Run(() =>
 		{
-			if (simulatorPipe == null)
+			/*while (true)
 			{
-				simulatorPipe = new NamedPipeServerStream("SimulatorPipe");
-				SimulatorPipeWriter = new StreamWriter(simulatorPipe);
-			}
-			simulatorPipe.WaitForConnectionEx();
-			Task.Delay(5000);
-		});
-}
+				if (simulatorPipe == null)
+				{
+					simulatorPipe = new NamedPipeServerStream("SimulatorPipe");
+					SimulatorPipeWriter = new StreamWriter(simulatorPipe);
+					simulatorPipe.WaitForConnection();
+					break;
+				}
 
+				Task.Delay(5000);
+			}*/
+		}//);
+	}
 }

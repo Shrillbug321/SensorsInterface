@@ -17,6 +17,7 @@ public abstract class Device
 	public abstract Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
 	public Dictionary<string, double> SignalsValues { get; } = [];
 	public string StandardizedValue { get; protected set; } = "";
+	public abstract List<double> Frequencies { get; set; }
 	public enum DeviceState
 	{
 		None,
@@ -131,6 +132,7 @@ public abstract class Device
 		int port = mode == "Retrieve" ? retrievePort : sendPort;
 		return CreateSocket(port);
 	}
+	
 	public ErrorCode CreateSocket(int port)
 	{
 		if (sockets.ContainsKey(port))
@@ -172,10 +174,9 @@ public abstract class Device
 
 	public void AddSignalChosen(string signal)
 	{
-		
 		SignalsChosen.Add(signal);
 		if (!Signals.ContainsKey(signal))
-		Signals.Add(signal, new Dictionary<DateTime, double>());
+			Signals.Add(signal, new Dictionary<DateTime, double>());
 		SignalsAvailable = SignalsAvailable.Where(s => s != signal).ToList();
 		if (RetrieveData == RetrieveDataMode.Driver)
 			SetSignals(Signals.Keys.ToList());

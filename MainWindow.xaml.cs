@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -16,9 +17,9 @@ namespace SensorsInterface;
 /// </summary>
 public partial class MainWindow
 {
-
-	private List<Device> Devices = [];
+	private List<Device> devices = [];
 	private List<Device> workingDevices = [];
+	private List<Device> lastAddedDevices = [];
 
 	/*private NamedPipeServerStream? pipe;
 	private StreamWriter pipeWriter;*/
@@ -33,37 +34,40 @@ public partial class MainWindow
 		Thread.CurrentThread.CurrentUICulture = ci;
 		InitializeComponent();
 
-		Devices.Add(new NeurobitOptima());
-		/*Devices.Add(new NeurobitOptima());
-		Devices[1].Name = "kkkkkkkkkkkkkkkkkkkkk";*/
-		GetConnectedDevices();
-		InitializeDevices();
-		Closing += (_, _) =>
-		{
-			foreach (Device device in Devices)
-			{
-				device.Close();
-			}
-		};
+		Device optima = new NeurobitOptima();
+		devices.Add(optima);
+		lastAddedDevices.Add(optima);
+		//GetConnectedDevices();
+		//InitializeDevices();
+		Closing += AddDeviceClosing;
 
-		CreateHUD();
-		CreateHUDNeurobitOptima();
-
-		Task.Run(() =>
-		{
-			while (true)
-			{
-				GetConnectedDevices();
-				InitializeDevices();
-				FindWorkingDevices();
-				RetrieveFromDevices();
-				RefreshChannelValues();
-				SendMessage();
-				Task.Delay(5000);
-			}
+				//Application.Current.Dispatcher.BeginInvoke((Action)(CreateHUD));
+		Application.Current.Dispatcher.InvokeAsync((Action)delegate{
+			//Task.Run(() =>
+            		{
+            			while (true)
+            			{
+            				GetConnectedDevices();
+            				InitializeDevices();
+            				CreateHUD();
+            				FindWorkingDevices();
+            				RetrieveFromDevices();
+            				RefreshChannelValues();
+            				SendMessage();
+            				lastAddedDevices.Clear();
+            				//Task.Delay(5);
+            			}
+            		}//);
 		});
+		
 	}
 
+	private void AddDeviceClosing(object? sender, CancelEventArgs cancelEventArgs)
+	{
+		foreach (Device device in devices)
+			device.Close();
+	}
+	
 	private void GetConnectedDevices()
 	{
 		List<USBDevice> usbDevices = USBDevice.GetUSBDevices();
@@ -75,14 +79,17 @@ public partial class MainWindow
 				"Neurobit Optima" => new NeurobitOptima(),
 				_ => null
 			};
-			if (device != null && !Devices.Contains(device))
-				Devices.Add(device);
+			if (device != null && !devices.Contains(device))
+			{
+				devices.Add(device);
+				lastAddedDevices.Add(device);
+			}
 		}
 	}
 
 	private void InitializeDevices(bool onlyNew = true)
 	{
-		List<Device> devices = onlyNew ? Devices.Where(d => d.State == DeviceState.None).ToList() : Devices;
+		List<Device> devices = onlyNew ? this.devices.Where(d => d.State == DeviceState.None).ToList() : this.devices;
 		foreach (Device device in devices)
 		{
 			device.State = DeviceState.Loaded;
@@ -110,14 +117,12 @@ public partial class MainWindow
 	private void SendMessage()
 	{
 		foreach (Device device in workingDevices)
-		{
 			device.Send(device.StandardizedValue);
-		}
 	}
 
 	private void FindWorkingDevices()
 	{
-		workingDevices = Devices.Where(d => d.State == DeviceState.Working).ToList();
+		workingDevices = devices.Where(d => d.State == DeviceState.Working).ToList();
 	}
 
 	private delegate void SendMessageDelegate(string message);
@@ -155,27 +160,44 @@ public partial class MainWindow
 		ComboBox comboBox = sender as ComboBox;
 		string signal = comboBox.SelectedItem.ToString();
 		device.AddSignalChosen(signal);
-		RefreshChannelValues();
+	}
+	private void FrequencyComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
+	{
+		Device device = GetDeviceByInputName<ComboBox>(sender);
+		ComboBox comboBox = sender as ComboBox;
+		string frequency = comboBox.SelectedItem.ToString();
+		string signal = Util.FindChild<ComboBox>(MainGrid, $"NeurobitOptimaChannel{comboBox.Name[^1]}").SelectedItem.ToString();
+		Global.SimulatorPipeWriter.WriteLine($"frequency:{signal}@{frequency}");
 	}
 
 	private void RefreshChannelValues()
 	{
 		DevicesListBox.Dispatcher.BeginInvoke((Action)(() =>
 		{
-			foreach (var device in Devices)
+			//Task.Delay(500);
+			foreach (var device in devices)
 			{
 				for (int j = 0; j < device.SignalsChosen.Count; j++)
 				{
-					string signal = device.SignalsChosen[j];
-					WrapPanel wrapPanel = (DevicesListBox.Children[j + 1] as GroupBox).Content as WrapPanel;
-					TextBlock channelValue = Util.FindChild<TextBlock>(wrapPanel, $"ChannelValue{j}");
-					var values = device.Signals[signal].Values;
-					channelValue.Text = values.Count > 0 ? device.Signals[signal].Values.Last().ToString() : "0.0";
-					double value = double.Parse(channelValue.Text);
-					UpdateChannelValueIndicator(wrapPanel, value, j);
+					int j1 = j;
+					//Task.Run(() =>
+					{
+						string signal = device.SignalsChosen[j1];
+						WrapPanel wrapPanel = (DevicesListBox.Children[j1 + 1] as GroupBox).Content as WrapPanel;
+						TextBlock channelValue = Util.FindChild<TextBlock>(wrapPanel, $"ChannelValue{j1}");
+						var values = device.Signals[signal].Values;
+						channelValue.Text = values.Count > 0 ? Format(device.Signals[signal].Values.Last()) : "0.0";
+						double value = double.Parse(channelValue.Text);
+						UpdateChannelValueIndicator(wrapPanel, value, j1);
+					}//);
 				}
 			}
 		}));
+	}
+
+	public static string Format(double number)
+	{
+		return $"{Math.Round(number, 4):f}";
 	}
 
 	private void UpdateChannelValueIndicator(WrapPanel wrapPanel, double value, int number)
@@ -218,16 +240,15 @@ public partial class MainWindow
 
 	private void RetrieveDataByUdpPort_OnTextChanged(object sender, TextChangedEventArgs e)
 	{
-		if (Devices.Count == 0) return;
+		if (devices.Count == 0) return;
 		TextBox tb = sender as TextBox;
 		Device device = GetDeviceByInputName<TextBox>(sender);
 		device.retrievePort = int.Parse(tb.Text);
-		Console.WriteLine(device.retrievePort);
 	}
 
 	private void SendDataByUdpPort_OnTextChanged(object sender, TextChangedEventArgs e)
 	{
-		if (Devices.Count == 0) return;
+		if (devices.Count == 0) return;
 		TextBox tb = sender as TextBox;
 		Device device = GetDeviceByInputName<TextBox>(sender);
 		device.sendPort = int.Parse(tb.Text);
@@ -236,7 +257,7 @@ public partial class MainWindow
 	private Device GetDeviceByInputName<T>(object sender) where T : Control
 	{
 		T input = sender as T;
-		return Devices.Find(d => input.Name.Contains(d.Code));
+		return devices.Find(d => input.Name.Contains(d.Code));
 	}
 
 	public Control GetInputByDeviceName<T>(string inputType, string deviceName) where T : Control

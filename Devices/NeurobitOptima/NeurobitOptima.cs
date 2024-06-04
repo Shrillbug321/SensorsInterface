@@ -11,12 +11,18 @@ public unsafe partial class NeurobitOptima : Device
 {
 	public override List<string> SignalsAvailable { get; set; } =
 	[
+		"EEG", "EKG", "HRV", "SCP", "BMP", "GSR", "RESP_TEMP", "BVP", "EMG"
+	];
+	
+	/*public override List<string> SignalsAvailable { get; set; } =
+	[
 		"EEG", "EKG", "EOG", "HRV", "SCP", "RESP", "nIR_HEG", "pIR_HEG", "BMP", "GSR", "RESP_BELT", "RESP_TEMP", "BVP",
 		"EMG"
-	];
+	];*/
 
 	public override List<string> SignalsChosen { get; set; } = [];
 	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
+	public override List<double> Frequencies { get; set; } = [1,2,5,10,20,50,100,200,500];
 	public override string Name { get; set; } = "Neurobit Optima+ 4 USB";
 	public override string Code { get; set; } = "NeurobitOptima";
 	protected override string DriverName => "NeurobitDrv64.dll";
@@ -248,12 +254,15 @@ public unsafe partial class NeurobitOptima : Device
 		return value;
 	}
 
+	private bool endPointCreated = false;
 	protected override string RetrieveFromNetwork()
 	{
+		//if (!endPointCreated)
 		IPEndPoint endPoint = IpEndPoints[retrievePort];
-		byte[] bytes = sockets[retrievePort].Receive(ref endPoint);
+		//byte[] bytes = ;
+		//if ()
 		IpEndPoints[retrievePort] = endPoint;
-		value = Encoding.ASCII.GetString(bytes);
+		value = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
 		return value;
 	}
 
@@ -284,7 +293,7 @@ public unsafe partial class NeurobitOptima : Device
 			{
 				{ date2, double.Parse(s[1]) }
 			};
-			Console.WriteLine($"{s[0]}={s[1]}");
+			//Console.WriteLine($"{s[0]}={s[1]}");
 		}
 	}
 
