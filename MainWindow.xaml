@@ -7,59 +7,5 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
 	<Grid Name="MainGrid">
-		<Grid.RowDefinitions>
-			<RowDefinition Height="45" />
-			<RowDefinition Height="625" />
-			<RowDefinition Height="25" />
-			<RowDefinition Height="125" />
-			<RowDefinition Height="*" />
-		</Grid.RowDefinitions>
-		<Grid>
-			<Grid.ColumnDefinitions>
-				<ColumnDefinition Width="400" />
-				<ColumnDefinition Width="400" />
-			</Grid.ColumnDefinitions>
-			<GroupBox Header="Pobieranie danych">
-				<WrapPanel>
-					<RadioButton GroupName="RetrieveMode" Content="Pobierz sterownikiem" Name="RetrieveDataByDriver_NeurobitOptima"
-					             Checked="RetrieveDataByDriver_OnChecked" />
-					<RadioButton GroupName="RetrieveMode" Content="Pobierz sieciowo" Name="RetrieveDataByUdp_NeurobitOptima"
-					             Checked="RetrieveDataByUdp_OnChecked" />
-					<TextBox Name="RetrieveDataByUdpPort_NeurobitOptima" Text="8053" TextChanged="RetrieveDataByUdpPort_OnTextChanged"/>
-					<RadioButton GroupName="RetrieveMode" Content="Nie pobieraj" Name="RetrieveDataNone_NeurobitOptima"
-					             Checked="RetrieveDataNone_OnChecked"
-					             IsChecked="True" />
-				</WrapPanel>
-			</GroupBox>
-			<GroupBox Grid.Column="1" Header="Wysyłanie danych">
-				<WrapPanel>
-					<RadioButton GroupName="SendMode" Content="Wyślij potokiem" Name="SendDataByPipe_NeurobitOptima"
-					             Checked="SendDataByPipe_OnChecked" />
-					<RadioButton GroupName="SendMode" Content="Wyślij sieciowo" Name="SendDataByUdp_NeurobitOptima"
-					             Checked="SendDataByUdp_OnChecked"/>
-					<TextBox Name="SendDataByUdpPort_NeurobitOptima" Text="8054" TextChanged="SendDataByUdpPort_OnTextChanged"/>
-					<RadioButton GroupName="SendMode" Content="Nie wysyłaj" Name="SendDataNone_NeurobitOptima" Checked="SendDataNone_OnChecked"
-					             IsChecked="True" />
-				</WrapPanel>
-			</GroupBox>
-		</Grid>
-		
-		<WrapPanel Grid.Row="1" Name="DevicesListBox">
-
-		</WrapPanel>
-		<!--<ListBox Grid.Row="3" Name="DevicesListBox" DataContext="{Binding Devices}" d:DataContext="{d:Devices }">
-			<ListBox.ItemTemplate>
-				<DataTemplate>
-					<StackPanel Orientation="Horizontal">
-						<Canvas>
-							<Ellipse Fill="{Binding StateColor}" Width="100" Height="100" />
-							<TextBlock Text="{Binding DeviceName}" Width="320" />
-							<TextBlock Text="{Binding DriverName}" Width="320" />
-						</Canvas>
-					</StackPanel>
-				</DataTemplate>
-			</ListBox.ItemTemplate>
-		</ListBox>-->
-		<WrapPanel Grid.Row="2" Name="SignalsPanel" Orientation="Vertical"></WrapPanel>
 	</Grid>
 </Window>

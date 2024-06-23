@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
-using SensorsInterface.Helpers;
 
 namespace SensorsInterface;
 
@@ -10,8 +8,10 @@ public class Global
 	public bool IsRunVRTherapy = false;
 	public static Global? Instance;
 	private static NamedPipeServerStream simulatorPipe;
-	public static StreamWriter SimulatorPipeWriter;
-
+	public StreamWriter SimulatorPipeWriter;
+	//private IPEndPoint endPoint = new(IPAddress., 8085);
+	
+	public static MainWindow window;
 	public Global()
 	{
 		if (Instance != null)

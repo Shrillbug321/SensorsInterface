@@ -5,26 +5,35 @@ using System.Net.Sockets;
 using System.Windows.Media;
 using SensorsInterface.Helpers;
 using static SensorsInterface.Helpers.Error;
+using static SensorsInterface.Global;
 
 namespace SensorsInterface.Devices;
 
 public abstract class Device
 {
-	public virtual string Name { get; set; } = "Device Name";
-	public virtual string Code { get; set; } = "Code";
+	public abstract string Name { get; set; }
+	public abstract string Code { get; set; }
 	public abstract List<string> SignalsAvailable { get; set; }
 	public abstract List<string> SignalsChosen { get; set; }
 	public abstract Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
+	//public abstract Dictionary<string, double> SignalsFrequencies { get; set; }
 	public Dictionary<string, double> SignalsValues { get; } = [];
 	public string StandardizedValue { get; protected set; } = "";
+	protected abstract bool[] ChannelsEnable{ get; set; }
+	public abstract int ChannelsNumber { get; set; }
 	public abstract List<double> Frequencies { get; set; }
+	public abstract List<string> ChannelFunctions { get; set; }
+	public abstract Dictionary<string,string> ChannelFunctionsPolish { get; set; }
+	public abstract Dictionary<string,string> ChannelFunctionsUnits { get; set; }
+	public abstract List<string> ChannelFunctionsChosen { get; set; }
 	public enum DeviceState
 	{
 		None,
 		Loaded,
 		Initialized,
 		Working,
-		Stopped
+		Stopped,
+		Error
 	}
 
 	private DeviceState state = DeviceState.None;
@@ -35,20 +44,11 @@ public abstract class Device
 		set
 		{
 			state = value;
-			StateColor = StateColors[value];
+			StateColor = window.StateColors[value];
 		}
 	}
 
 	public SolidColorBrush StateColor = new(Color.FromRgb(0, 128, 0));
-
-	private static Dictionary<DeviceState, SolidColorBrush> StateColors = new()
-	{
-		{ DeviceState.None, new SolidColorBrush(Color.FromRgb(255, 0, 255)) },
-		{ DeviceState.Loaded, new SolidColorBrush(Color.FromRgb(128, 128, 128)) },
-		{ DeviceState.Initialized, new SolidColorBrush(Color.FromRgb(128, 128, 0)) },
-		{ DeviceState.Working, new SolidColorBrush(Color.FromRgb(0, 128, 0)) },
-		{ DeviceState.Stopped, new SolidColorBrush(Color.FromRgb(255, 128, 0)) },
-	};
 
 	public RetrieveDataMode RetrieveData = RetrieveDataMode.None;
 	public SendDataMode SendData = SendDataMode.None;
@@ -88,6 +88,9 @@ public abstract class Device
 	}
 
 	public abstract ErrorCode Initialize();
+	public abstract ErrorCode SetSignal(string signals);
+	public abstract ErrorCode SetUnit(string unit);
+	public abstract ErrorCode SetChannelFunction(string channelFunction);
 	public abstract ErrorCode SetSignals(List<string> signals);
 	public abstract ErrorCode StartMeasurement();
 
@@ -101,6 +104,10 @@ public abstract class Device
 		};
 	}
 
+	public virtual void SetChannelState(int channelNumber, bool state)
+	{
+		ChannelsEnable[channelNumber] = state;
+	}
 	protected abstract string RetrieveFromDriver();
 	protected abstract string RetrieveFromNetwork();
 

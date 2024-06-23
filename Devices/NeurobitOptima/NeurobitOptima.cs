@@ -23,6 +23,24 @@ public unsafe partial class NeurobitOptima : Device
 	public override List<string> SignalsChosen { get; set; } = [];
 	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
 	public override List<double> Frequencies { get; set; } = [1,2,5,10,20,50,100,200,500];
+	public override List<string> ChannelFunctions { get; set; } = ["Voltage", "Conduction", "Temperature", "Resistance"];
+
+	public override Dictionary<string, string> ChannelFunctionsPolish { get; set; } = new()
+	{
+		{"Voltage","Napięcie"},
+		{"Conduction","Przewodność"},
+		{"Temperature","Temperatura"},
+		{"Resistance","Oporność"},
+	};
+	public override Dictionary<string, string> ChannelFunctionsUnits { get; set; } = new()
+	{
+		{"Voltage"," V"},
+		{"Conduction"," S"},
+		{"Temperature","\u00b0C"},
+		{"Resistance","Ω"},
+	};
+
+	public override List<string> ChannelFunctionsChosen { get; set; } = [];
 	public override string Name { get; set; } = "Neurobit Optima+ 4 USB";
 	public override string Code { get; set; } = "NeurobitOptima";
 	protected override string DriverName => "NeurobitDrv64.dll";
@@ -30,9 +48,10 @@ public unsafe partial class NeurobitOptima : Device
 
 	const string DefaultConfigName = "Default.cfg";
 	private DevContextInfo devInfo;
-	//private static bool[] channelsEnable = new bool[MAX_SIGNALS];
-	private static bool[] channelsEnable = [true, true, true, true];
-	public int ChannelsNumber { get; set; }
+	//private static bool[] ChannelsEnable = new bool[MAX_SIGNALS];
+	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
+	public override int ChannelsNumber { get; set; } = 4;
+	//Fields only for Optima
 	private static NDGETVAL getter;
 	private static NDSETVAL setter;
 	private string value;
@@ -88,6 +107,21 @@ public unsafe partial class NeurobitOptima : Device
 		if (code != ErrorCode.Success) return code;
 
 		return ErrorCode.Success;
+	}
+
+	public override ErrorCode SetSignal(string signals)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override ErrorCode SetUnit(string unit)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override ErrorCode SetChannelFunction(string channelFunction)
+	{
+		throw new NotImplementedException();
 	}
 
 	public ErrorCode GetChannelNumber()
@@ -174,20 +208,17 @@ public unsafe partial class NeurobitOptima : Device
 			{
 				if (!IsValueProperlyGet("ChannelsEnable", i))
 					return 0;
-				channelsEnable[i] = getter.val.b;
+				ChannelsEnable[i] = getter.val.b;
 			}
 			else
-				channelsEnable[i] = true;
+				ChannelsEnable[i] = true;
 		}
 
 		dev.dev_chans = ChannelsNumber;
 		return ChannelsNumber;
 	}
 
-	public void SetChannelState(int channelNumber, bool state)
-	{
-		channelsEnable[channelNumber] = state;
-	}
+	
 
 	protected override string RetrieveFromDriver()
 	{
@@ -202,7 +233,7 @@ public unsafe partial class NeurobitOptima : Device
 			Console.WriteLine(header);
 			for (short i = 0; i < ChannelsNumber; i++)
 			{
-				if (!channelsEnable[i])
+				if (!ChannelsEnable[i])
 					continue;
 
 				if (header != "Unit")
@@ -287,7 +318,7 @@ public unsafe partial class NeurobitOptima : Device
 		for (int j = 0; j < channels.Length; j++)
 		{
 			string[] s = channels[j].Split('=');
-			if (!channelsEnable[j]) continue; // || !SignalsChosen.Contains(s[0])) continue;
+			if (!ChannelsEnable[j]) continue; // || !SignalsChosen.Contains(s[0])) continue;
 			s[1] = s[1].Split('#')[0];
 			Signals[s[0]] = new Dictionary<DateTime, double>
 			{
@@ -321,7 +352,7 @@ public unsafe partial class NeurobitOptima : Device
 		string[] channels = split[1].Split(';');
 		for (int j = 0; j < channels.Length; j++)
 		{
-			if (!channelsEnable[j]) continue;
+			if (!ChannelsEnable[j]) continue;
 			string[] s = channels[j].Split('=');
 			s[1] = s[1].Split('#')[0];
 			Signals[s[0]] = new Dictionary<DateTime, double>

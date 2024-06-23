@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using SensorsInterface.Devices;
 using SensorsInterface.Devices.NeurobitOptima;
+using SensorsInterface.Devices.Simulator;
 using SensorsInterface.Helpers;
 using SensorsInterface.Native;
 using static SensorsInterface.Devices.Device;
@@ -20,6 +21,11 @@ public partial class MainWindow
 	private List<Device> devices = [];
 	private List<Device> workingDevices = [];
 	private List<Device> lastAddedDevices = [];
+	private Dictionary<string, Device> hiddenDevices = new()
+	{
+		{ "NeurobitOptima", new NeurobitOptima() },
+		{ "DeviceSimulator", new DeviceSimulator() },
+	};
 
 	/*private NamedPipeServerStream? pipe;
 	private StreamWriter pipeWriter;*/
@@ -33,33 +39,36 @@ public partial class MainWindow
 		Thread.CurrentThread.CurrentCulture = ci;
 		Thread.CurrentThread.CurrentUICulture = ci;
 		InitializeComponent();
+		Global.window = this;
 
-		Device optima = new NeurobitOptima();
-		devices.Add(optima);
-		lastAddedDevices.Add(optima);
+		Device simulator = new DeviceSimulator();
+		devices.Add(simulator);
+		/*Device optima = new NeurobitOptima();
+		devices.Add(optima);*/
+		//lastAddedDevices.Add(optima);
 		//GetConnectedDevices();
 		//InitializeDevices();
+		CreateHUD();
 		Closing += AddDeviceClosing;
 
-				//Application.Current.Dispatcher.BeginInvoke((Action)(CreateHUD));
-		Application.Current.Dispatcher.InvokeAsync((Action)delegate{
-			//Task.Run(() =>
-            		{
-            			while (true)
-            			{
-            				GetConnectedDevices();
-            				InitializeDevices();
-            				CreateHUD();
-            				FindWorkingDevices();
-            				RetrieveFromDevices();
-            				RefreshChannelValues();
-            				SendMessage();
-            				lastAddedDevices.Clear();
-            				//Task.Delay(5);
-            			}
-            		}//);
+		//Application.Current.Dispatcher.BeginInvoke((Action)(CreateHUD));
+		//Application.Current.Dispatcher.InvokeAsync((Action)delegate{
+		Task.Run(() =>
+		{
+			while (true)
+			{
+				GetConnectedDevices();
+				InitializeDevices();
+				RefreshHUD();
+				FindWorkingDevices();
+				RetrieveFromDevices();
+				RefreshChannelValues();
+				SendMessage();
+				lastAddedDevices.Clear();
+				//Task.Delay(5);
+			}
 		});
-		
+		//});
 	}
 
 	private void AddDeviceClosing(object? sender, CancelEventArgs cancelEventArgs)
@@ -67,7 +76,7 @@ public partial class MainWindow
 		foreach (Device device in devices)
 			device.Close();
 	}
-	
+
 	private void GetConnectedDevices()
 	{
 		List<USBDevice> usbDevices = USBDevice.GetUSBDevices();
@@ -161,18 +170,29 @@ public partial class MainWindow
 		string signal = comboBox.SelectedItem.ToString();
 		device.AddSignalChosen(signal);
 	}
+
 	private void FrequencyComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<ComboBox>(sender);
 		ComboBox comboBox = sender as ComboBox;
 		string frequency = comboBox.SelectedItem.ToString();
-		string signal = Util.FindChild<ComboBox>(MainGrid, $"NeurobitOptimaChannel{comboBox.Name[^1]}").SelectedItem.ToString();
-		Global.SimulatorPipeWriter.WriteLine($"frequency:{signal}@{frequency}");
+		string signal = Util.FindChild<ComboBox>(MainGrid, $"{device.Code}Channel{comboBox.Name[^1]}")
+			.SelectedItem.ToString();
+		//global.SimulatorSocket.Send(  Encoding.ASCII.GetBytes($"frequency:{signal}@{frequency}"));
+	}
+	private void ChannelFunctionComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
+	{
+		Device device = GetDeviceByInputName<ComboBox>(sender);
+		ComboBox comboBox = sender as ComboBox;
+		string channelFunction = comboBox.SelectedItem.ToString();
+		string translated = device.ChannelFunctionsPolish.First(v => v.Value == channelFunction).Key;
+		Util.FindChild<TextBlock>(MainGrid, $"ChannelUnit{comboBox.Name[^1]}").Text = device.ChannelFunctionsUnits[translated];
+		//global.SimulatorSocket.Send(  Encoding.ASCII.GetBytes($"frequency:{signal}@{frequency}"));
 	}
 
 	private void RefreshChannelValues()
 	{
-		DevicesListBox.Dispatcher.BeginInvoke((Action)(() =>
+		/*DevicesListBox.Dispatcher.BeginInvoke((Action)(() =>
 		{
 			//Task.Delay(500);
 			foreach (var device in devices)
@@ -183,16 +203,17 @@ public partial class MainWindow
 					//Task.Run(() =>
 					{
 						string signal = device.SignalsChosen[j1];
-						WrapPanel wrapPanel = (DevicesListBox.Children[j1 + 1] as GroupBox).Content as WrapPanel;
-						TextBlock channelValue = Util.FindChild<TextBlock>(wrapPanel, $"ChannelValue{j1}");
+						WrapPanel wrapPanel = (((DevicesListBox.Children[0] as StackPanel).Children[1] as WrapPanel).Children[j1 + 1] as GroupBox).Content as WrapPanel;
+						//TextBlock channelValue = Util.FindChild<TextBlock>(wrapPanel, $"ChannelValue{j1}");
+						TextBlock channelValue = wrapPanel.Children[2] as TextBlock;
 						var values = device.Signals[signal].Values;
 						channelValue.Text = values.Count > 0 ? Format(device.Signals[signal].Values.Last()) : "0.0";
 						double value = double.Parse(channelValue.Text);
-						UpdateChannelValueIndicator(wrapPanel, value, j1);
-					}//);
+						UpdateChannelValueIndicator(wrapPanel, value, j1+1);
+					} //);
 				}
 			}
-		}));
+		}));*/
 	}
 
 	public static string Format(double number)
@@ -260,8 +281,8 @@ public partial class MainWindow
 		return devices.Find(d => input.Name.Contains(d.Code));
 	}
 
-	public Control GetInputByDeviceName<T>(string inputType, string deviceName) where T : Control
+	public T GetInputByDeviceName<T>(string inputType, string deviceName) where T : Control
 	{
-		return Util.FindChild<T>(MainGrid, inputType + "_" + deviceName);
+		return Util.FindChild<T>(MainGrid, deviceName+inputType);
 	}
 }
