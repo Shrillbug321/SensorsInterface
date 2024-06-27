@@ -41,8 +41,8 @@ public partial class MainWindow
 		InitializeComponent();
 		Global.window = this;
 
-		Device simulator = new DeviceSimulator();
-		devices.Add(simulator);
+		/*Device simulator = new DeviceSimulator();
+		devices.Add(simulator);*/
 		/*Device optima = new NeurobitOptima();
 		devices.Add(optima);*/
 		//lastAddedDevices.Add(optima);

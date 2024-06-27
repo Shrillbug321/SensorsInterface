@@ -209,8 +209,8 @@ public partial class MainWindow
 			MainGrid.Children.Add(panel);
 		}
 
-		//devices.Add(hiddenDevices["NeurobitOptima"]);
-		devices.Add(hiddenDevices["DeviceSimulator"]);
+		devices.Add(hiddenDevices["NeurobitOptima"]);
+		//devices.Add(hiddenDevices["DeviceSimulator"]);
 	}
 
 	private WrapPanel CreateHUDDevice(Device device)

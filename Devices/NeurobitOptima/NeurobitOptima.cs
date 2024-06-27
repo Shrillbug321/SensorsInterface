@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using static SensorsInterface.Native.NativeMethods;
 using static SensorsInterface.Helpers.Error;
@@ -13,7 +14,7 @@ public unsafe partial class NeurobitOptima : Device
 	[
 		"EEG", "EKG", "HRV", "SCP", "BMP", "GSR", "RESP_TEMP", "BVP", "EMG"
 	];
-	
+
 	/*public override List<string> SignalsAvailable { get; set; } =
 	[
 		"EEG", "EKG", "EOG", "HRV", "SCP", "RESP", "nIR_HEG", "pIR_HEG", "BMP", "GSR", "RESP_BELT", "RESP_TEMP", "BVP",
@@ -22,22 +23,25 @@ public unsafe partial class NeurobitOptima : Device
 
 	public override List<string> SignalsChosen { get; set; } = [];
 	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
-	public override List<double> Frequencies { get; set; } = [1,2,5,10,20,50,100,200,500];
-	public override List<string> ChannelFunctions { get; set; } = ["Voltage", "Conduction", "Temperature", "Resistance"];
+	public override List<double> Frequencies { get; set; } = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+
+	public override List<string> ChannelFunctions { get; set; } =
+		["Voltage", "Conduction", "Temperature", "Resistance"];
 
 	public override Dictionary<string, string> ChannelFunctionsPolish { get; set; } = new()
 	{
-		{"Voltage","Napięcie"},
-		{"Conduction","Przewodność"},
-		{"Temperature","Temperatura"},
-		{"Resistance","Oporność"},
+		{ "Voltage", "Napięcie" },
+		{ "Conduction", "Przewodność" },
+		{ "Temperature", "Temperatura" },
+		{ "Resistance", "Oporność" },
 	};
+
 	public override Dictionary<string, string> ChannelFunctionsUnits { get; set; } = new()
 	{
-		{"Voltage"," V"},
-		{"Conduction"," S"},
-		{"Temperature","\u00b0C"},
-		{"Resistance","Ω"},
+		{ "Voltage", " V" },
+		{ "Conduction", " S" },
+		{ "Temperature", "\u00b0C" },
+		{ "Resistance", "Ω" },
 	};
 
 	public override List<string> ChannelFunctionsChosen { get; set; } = [];
@@ -47,10 +51,14 @@ public unsafe partial class NeurobitOptima : Device
 	protected override string DriverPath => $@"..\..\..\Drivers\Neurobit Optima\{DriverName}";
 
 	const string DefaultConfigName = "Default.cfg";
+
 	private DevContextInfo devInfo;
+
 	//private static bool[] ChannelsEnable = new bool[MAX_SIGNALS];
 	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
+
 	public override int ChannelsNumber { get; set; } = 4;
+
 	//Fields only for Optima
 	private static NDGETVAL getter;
 	private static NDSETVAL setter;
@@ -145,9 +153,6 @@ public unsafe partial class NeurobitOptima : Device
 
 	public override ErrorCode SetSignals(List<string> signals)
 	{
-		if (signals.Count > ChannelsNumber)
-			return ErrorCode.DeviceSignalListIsTooLong;
-
 		for (short i = 0; i < signals.Count; i++)
 		{
 			if (NdSetParam(ParameterId("ND_PAR_CH_EN"), i, out setter) < 0)
@@ -208,7 +213,7 @@ public unsafe partial class NeurobitOptima : Device
 			{
 				if (!IsValueProperlyGet("ChannelsEnable", i))
 					return 0;
-				ChannelsEnable[i] = getter.val.b;
+				//ChannelsEnable[i] = getter.val.b;
 			}
 			else
 				ChannelsEnable[i] = true;
@@ -218,20 +223,15 @@ public unsafe partial class NeurobitOptima : Device
 		return ChannelsNumber;
 	}
 
-	
-
 	protected override string RetrieveFromDriver()
 	{
 		bool foundError = false;
 		value = "";
-		//const char*  const SigHeaderNames [SIG_HEADER_LINES] =  {
 		List<string> signalHeaders = ["Channel", "Min", "Max", "Unit", "SR", "Label", "Sensor"];
-
-		/* Print sample array header */
-		foreach (string header in signalHeaders)
+		for (short i = 0; i < ChannelsNumber; i++)
 		{
-			Console.WriteLine(header);
-			for (short i = 0; i < ChannelsNumber; i++)
+			Console.WriteLine($"Channel {i}");
+			foreach (string header in signalHeaders)
 			{
 				if (!ChannelsEnable[i])
 					continue;
@@ -248,28 +248,29 @@ public unsafe partial class NeurobitOptima : Device
 				switch (header)
 				{
 					case "Channel":
-						value += getter.val.t + ";";
-						dev->names = getter.val.t;
+						value += getter.val.t + "Ch;";
+						devInfo.names = getter.val.t;
 						break;
 					case "Min":
-						value += getter.val.f + ";";
+						value += getter.val.f + "Min;";
 						break;
 					case "Max":
-						value += getter.val.f + ";";
-						dev->coeff[i] = getter.val.f / 0x80000000ul;
+						value += getter.val.f + "Max;";
+						devInfo.coeff[i] = getter.val.f / 0x80000000ul;
 						break;
 					case "Unit":
-						NDPARAM* p = NdParamInfo(ParameterId("ND_PAR_CH_RANGE_MAX"), i);
-						value += p->unit + ";";
+						/*NDPARAM* p = NdParamInfo(ParameterId("ND_PAR_CH_RANGE_MAX"), i);
+						value += p->unit + ";";*/
+						value += "U;";
 						break;
 					case "SR":
-						value += getter.val.f + ";";
+						value += getter.val.f + "SR;";
 						break;
 					case "Label":
-						value += getter.val.t + ";";
+						value += getter.val.t + "L;";
 						break;
 					case "Sensor":
-						value += getter.val.t + ";";
+						value += getter.val.t + "S;";
 						break;
 				}
 
@@ -279,13 +280,16 @@ public unsafe partial class NeurobitOptima : Device
 					return $"Optima Error {header}";
 				}
 			}
+
+			value += "\r\n";
+		Console.WriteLine(value);
 		}
 
-		Console.WriteLine(value + "\n");
 		return value;
 	}
 
 	private bool endPointCreated = false;
+
 	protected override string RetrieveFromNetwork()
 	{
 		//if (!endPointCreated)
@@ -310,7 +314,7 @@ public unsafe partial class NeurobitOptima : Device
 
 	public override void ConvertValueToStandard()
 	{
-		string[] split = value.Split('@');
+		/*string[] split = value.Split('@');
 		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
 		string[] channels = split[1].Split(';');
 		DateTime date2 = date.DateTime.AddHours(2);
@@ -324,8 +328,8 @@ public unsafe partial class NeurobitOptima : Device
 			{
 				{ date2, double.Parse(s[1]) }
 			};
-			//Console.WriteLine($"{s[0]}={s[1]}");
-		}
+			Console.WriteLine($"{s[0]}={s[1]}");
+		}*/
 	}
 
 	public override string ConvertValueToStandardString()
@@ -381,10 +385,6 @@ public unsafe partial class NeurobitOptima : Device
 
 		return NdGetParam(ParameterId(tuple.Item1), channelNumber, out getter) == 0 ||
 		       (getter.type & ~TypeId(tuple.Item2)) == TypeId(tuple.Item3);
-
-		//Ten warunek sprawdzał czy jest niepoprawne
-		/*return NdGetParam(ParameterId(tuple.Item1), channelNumber, &getter) == 0 ||
-		       !((getter.type & ~ParameterId(tuple.Item2)) == ParameterId(tuple.Item3));*/
 	}
 
 	private int ReadCfgFile(string fileName)

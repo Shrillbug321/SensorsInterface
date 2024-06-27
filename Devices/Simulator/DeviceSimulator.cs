@@ -36,7 +36,13 @@ public class DeviceSimulator : Device
 	private SignalGenerator[] signalGenerator;
 	private List<DateTime> lastTime = [];
 	private List<TimeSpan> ticks = [];
-	private Dictionary<string, int> signalFrequencies = new();
+	private Dictionary<string, int> signalFrequencies = new()
+	{
+		{"EKG",62},
+		{"BVP",62},
+		{"HRV",62},
+		{"GSR",62},
+	};
 	private int gain = 40;
 	private int offset = 50;
 
@@ -122,7 +128,7 @@ public class DeviceSimulator : Device
 
 	public override void ConvertValueToStandard()
 	{
-		throw new NotImplementedException();
+		//throw new NotImplementedException();
 	}
 
 	public override string ConvertValueToStandardString()
