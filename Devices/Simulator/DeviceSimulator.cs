@@ -7,7 +7,7 @@ public class DeviceSimulator : Device
 	public override string Name { get; set; } = "DeviceSimulator";
 	public override string Code { get; set; } = "DeviceSimulator";
 	public override List<string> SignalsAvailable { get; set; } = ["EKG", "BVP", "HRV", "GSR"];
-	public override List<string> SignalsChosen { get; set; } = [];
+	public override List<string> SignalsChosen { get; set; } = ["EKG", "EKG", "EKG", "EKG"];
 	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
 	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
 	public override int ChannelsNumber { get; set; } = 4;
@@ -29,13 +29,14 @@ public class DeviceSimulator : Device
 		{"Resistance","Ω"},
 	};
 
-	public override List<string> ChannelFunctionsChosen { get; set; } = [];
+	public override List<string> ChannelFunctionsChosen { get; set; } = [..new string[4]];
+	public override List<SignalState> SignalStates { get; set; } = [..new SignalState[4]];
 	protected override string DriverName { get; } = "";
 	protected override string DriverPath { get; } = "";
 
 	private SignalGenerator[] signalGenerator;
-	private List<DateTime> lastTime = [];
-	private List<TimeSpan> ticks = [];
+	private List<DateTime> lastTime = [..new DateTime[4]];
+	private List<TimeSpan> ticks = [..new TimeSpan[4]];
 	private Dictionary<string, int> signalFrequencies = new()
 	{
 		{"EKG",62},
@@ -92,7 +93,7 @@ public class DeviceSimulator : Device
 		DateTime now = DateTime.Now;
 		bool dateAdded = false;
 		string message = "";
-		for (int i = 0; i < SignalsChosen.Count; i++)
+		for (int i = 0; i < Signals.Count; i++)
 		{
 			if (now - lastTime[i] >= ticks[i])
 			{
@@ -104,7 +105,8 @@ public class DeviceSimulator : Device
 
 				lastTime[i] = now;
 				float value = gain * signalGenerator[i].GetValue() + offset;
-				message += $"{SignalsChosen[i]}={value}#{i}";
+				message += $"{Signals.Keys.ElementAt(i)}={value}#{i}";
+				RHIF.RHIF.CreateObservation(Signals.Keys.ElementAt(i), value, now,ChannelFunctionsChosen[i],SignalStates[i]);
 			}
 		}
 
@@ -128,6 +130,7 @@ public class DeviceSimulator : Device
 
 	public override void ConvertValueToStandard()
 	{
+		//RHIF.RHIF.CreateObservation();
 		//throw new NotImplementedException();
 	}
 

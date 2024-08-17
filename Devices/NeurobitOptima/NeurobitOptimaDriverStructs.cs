@@ -4,7 +4,6 @@ namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima
 {
-	// PInvoke declaration for the native DLL exported function
 	[DllImport("NeurobitDrv64.dll", CallingConvention = CallingConvention.StdCall)]
 	public static extern int NdStartMeasurement(short DeviceContext, TStartMeasurement.MeasurementMode Mode);
 

@@ -10,7 +10,7 @@ public class USBDevice(string deviceID, string pnpDeviceID, string description)
 
 	public static List<USBDevice> GetUSBDevices()
 	{
-		List<USBDevice> devices = new List<USBDevice>();
+		List<USBDevice> devices = [];
 
 		using var searcher = new ManagementObjectSearcher(
 			@"Select * From Win32_PnPEntity ");

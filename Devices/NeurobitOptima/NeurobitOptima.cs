@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows;
 using static SensorsInterface.Native.NativeMethods;
 using static SensorsInterface.Helpers.Error;
 
@@ -21,7 +22,7 @@ public unsafe partial class NeurobitOptima : Device
 		"EMG"
 	];*/
 
-	public override List<string> SignalsChosen { get; set; } = [];
+	public override List<string> SignalsChosen { get; set; } = [..new string[4]];
 	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
 	public override List<double> Frequencies { get; set; } = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 
@@ -45,6 +46,7 @@ public unsafe partial class NeurobitOptima : Device
 	};
 
 	public override List<string> ChannelFunctionsChosen { get; set; } = [];
+	public override List<SignalState> SignalStates { get; set; }
 	public override string Name { get; set; } = "Neurobit Optima+ 4 USB";
 	public override string Code { get; set; } = "NeurobitOptima";
 	protected override string DriverName => "NeurobitDrv64.dll";
@@ -88,17 +90,17 @@ public unsafe partial class NeurobitOptima : Device
 		/*State = DeviceState.Initialized;
 		return ErrorCode.Success;*/
 		nint library = LoadLibrary(DriverPath);
+		
+		if (library == 0x0)
+			return ErrorCode.LibraryNotLoaded;
+		
 		devInfo = new DevContextInfo
 		{
 			model = Name, coeff = new float[MAX_SIGNALS]
 		};
 		//dev = &devInfo;
-		int err = GetLastError();
-		Console.WriteLine(err);
-
-		if (library == 0x0)
-			return ErrorCode.LibraryNotLoaded;
-
+		Console.WriteLine(GetLastError());
+		
 		/*if ((DeviceContext = ReadCfgFile(DefaultConfigName)) < 0)
 		{
 			/*Cannot read last configuration.
@@ -112,9 +114,11 @@ public unsafe partial class NeurobitOptima : Device
 		}*/
 		ErrorCode code = GetChannelNumber();
 
-		if (code != ErrorCode.Success) return code;
+		return code;
 
-		return ErrorCode.Success;
+		/*if (code != ErrorCode.Success) return code;
+
+		return ErrorCode.Success;*/
 	}
 
 	public override ErrorCode SetSignal(string signals)
@@ -225,23 +229,22 @@ public unsafe partial class NeurobitOptima : Device
 
 	protected override string RetrieveFromDriver()
 	{
-		bool foundError = false;
 		value = "";
 		List<string> signalHeaders = ["Channel", "Min", "Max", "Unit", "SR", "Label", "Sensor"];
 		for (short i = 0; i < ChannelsNumber; i++)
 		{
 			Console.WriteLine($"Channel {i}");
+			if (!ChannelsEnable[i]) continue;
+			
 			foreach (string header in signalHeaders)
 			{
-				if (!ChannelsEnable[i])
-					continue;
-
 				if (header != "Unit")
 				{
 					if (!IsValueProperlyGet(header, i))
 					{
-						foundError = true;
-						continue;
+						MessageBoxResult result = ShowMessageBox(ErrorCode.DeviceMeasurementReadError, "Błąd odczytu", $"{header};");
+						if (result == MessageBoxResult.Yes) continue;
+						return $"Optima Error {header}";
 					}
 				}
 
@@ -273,16 +276,10 @@ public unsafe partial class NeurobitOptima : Device
 						value += getter.val.t + "S;";
 						break;
 				}
-
-				if (foundError)
-				{
-					ShowMessageBox(ErrorCode.DeviceMeasurementReadError);
-					return $"Optima Error {header}";
-				}
 			}
 
 			value += "\r\n";
-		Console.WriteLine(value);
+			Console.WriteLine(value);
 		}
 
 		return value;

@@ -26,6 +26,7 @@ public abstract class Device
 	public abstract Dictionary<string,string> ChannelFunctionsPolish { get; set; }
 	public abstract Dictionary<string,string> ChannelFunctionsUnits { get; set; }
 	public abstract List<string> ChannelFunctionsChosen { get; set; }
+	public abstract List<SignalState> SignalStates { get; set; }
 	public enum DeviceState
 	{
 		None,
@@ -36,6 +37,11 @@ public abstract class Device
 		Error
 	}
 
+	public enum SignalState
+	{
+		Low,Normal,High
+	}
+	
 	private DeviceState state = DeviceState.None;
 
 	public DeviceState State
@@ -179,9 +185,10 @@ public abstract class Device
 		});
 	}
 
-	public void AddSignalChosen(string signal)
+	public void AddSignalChosen(string signal, int index)
 	{
-		SignalsChosen.Add(signal);
+		SignalsChosen[index] = signal;
+		//SignalsChosen.Add(signal);
 		if (!Signals.ContainsKey(signal))
 			Signals.Add(signal, new Dictionary<DateTime, double>());
 		SignalsAvailable = SignalsAvailable.Where(s => s != signal).ToList();

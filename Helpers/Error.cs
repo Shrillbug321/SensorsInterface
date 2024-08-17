@@ -41,7 +41,7 @@ public static class Error
 		{ErrorCode.DeviceProfileNotSet, new MessageBoxElement {Text = "Nie można ustawić profilu."}},
 		{ErrorCode.DeviceNotConnected, new MessageBoxElement {Text = "Nie można połączyć z urządzeniem"}},
 		{ErrorCode.DeviceMeasurementCannotStart, new MessageBoxElement {Text = "Nie można rozpocząć pomiarów"}},
-		{ErrorCode.DeviceMeasurementReadError, new MessageBoxElement {Text = "Nie można odczytać sygnału"}},
+		{ErrorCode.DeviceMeasurementReadError, new MessageBoxElement {Text = "Nie można odczytać sygnału {0}. \nKontynuować?", Button = MessageBoxButton.YesNo}},
 		{ErrorCode.PipeNotConnected, new MessageBoxElement {Text = "Nie można połączyć z potokiem.\nPrawdopodobnie aplikacja odbierająca nie jest włączona lub nie używa potoku."}},
 		{ErrorCode.SocketNotConnected, new MessageBoxElement {Text = "Nie można połączyć z gniazdem.\nUpewnij się, że aplikacja odbierająca jest włączona oraz czy port nie jest zajęty."}},
 		{ErrorCode.RetrieveDataModeNotSelected, new MessageBoxElement {Text = "Nie można uruchomić urządzenia, gdy nie wybrano sposobu pobierania danych."}},

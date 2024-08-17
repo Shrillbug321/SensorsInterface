@@ -168,7 +168,7 @@ public partial class MainWindow
 		Device device = GetDeviceByInputName<ComboBox>(sender);
 		ComboBox comboBox = sender as ComboBox;
 		string signal = comboBox.SelectedItem.ToString();
-		device.AddSignalChosen(signal);
+		device.AddSignalChosen(signal,comboBox.SelectedIndex);
 	}
 
 	private void FrequencyComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
@@ -187,6 +187,7 @@ public partial class MainWindow
 		string channelFunction = comboBox.SelectedItem.ToString();
 		string translated = device.ChannelFunctionsPolish.First(v => v.Value == channelFunction).Key;
 		Util.FindChild<TextBlock>(MainGrid, $"ChannelUnit{comboBox.Name[^1]}").Text = device.ChannelFunctionsUnits[translated];
+		device.ChannelFunctionsChosen[int.Parse(comboBox.Name[^1].ToString())] = translated;
 		//global.SimulatorSocket.Send(  Encoding.ASCII.GetBytes($"frequency:{signal}@{frequency}"));
 	}
 
@@ -209,7 +210,7 @@ public partial class MainWindow
 						var values = device.Signals[signal].Values;
 						channelValue.Text = values.Count > 0 ? Format(device.Signals[signal].Values.Last()) : "0.0";
 						double value = double.Parse(channelValue.Text);
-						UpdateChannelValueIndicator(wrapPanel, value, j1+1);
+						UpdateChannelValueIndicator(wrapPanel, device, value, j1+1);
 					} //);
 				}
 			}
@@ -221,7 +222,7 @@ public partial class MainWindow
 		return $"{Math.Round(number, 4):f}";
 	}
 
-	private void UpdateChannelValueIndicator(WrapPanel wrapPanel, double value, int number)
+	private void UpdateChannelValueIndicator(WrapPanel wrapPanel, Device device, double value, int number)
 	{
 		double min = double.Parse(Util.FindChild<TextBox>(wrapPanel, $"MinRangeValue{number}").Text);
 		double max = double.Parse(Util.FindChild<TextBox>(wrapPanel, $"MaxRangeValue{number}").Text);
@@ -230,21 +231,23 @@ public partial class MainWindow
 		{
 			channelValueIndicator.Text = value < min ? "\u2b0a" : "\u2b08";
 			channelValueIndicator.Foreground = new SolidColorBrush(Color.FromRgb(205, 0, 50));
+			device.SignalStates[number] = value < min ? SignalState.Low : SignalState.High;
 		}
 
 		if (value > min && value < max)
 		{
 			channelValueIndicator.Text = "✔";
 			channelValueIndicator.Foreground = new SolidColorBrush(Color.FromRgb(0, 255, 0));
+			device.SignalStates[number] = SignalState.Normal;
 		}
 	}
-
+//
 	private void RetrieveDataByDriver_OnChecked(object sender, RoutedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<RadioButton>(sender);
 		device.RetrieveData = RetrieveDataMode.Driver;
 	}
-
+//
 	private void RetrieveDataByUdp_OnChecked(object sender, RoutedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<RadioButton>(sender);
