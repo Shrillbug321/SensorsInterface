@@ -108,4 +108,16 @@ public static class Util
 
 		return foundChild;
 	}
+
+	public static V FindByIndex<K, V>(this Dictionary<K, V> dictionary, int index)
+	{
+		int i = 0;
+		foreach (var pair in dictionary)
+		{
+			if (i++ == index)
+				return pair.Value;
+		}
+
+		throw new Exception();
+	}
 }

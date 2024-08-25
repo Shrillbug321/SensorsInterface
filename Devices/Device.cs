@@ -13,11 +13,9 @@ public abstract class Device
 {
 	public abstract string Name { get; set; }
 	public abstract string Code { get; set; }
-	public abstract List<string> SignalsAvailable { get; set; }
-	public abstract List<string> SignalsChosen { get; set; }
-	public abstract Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
-	//public abstract Dictionary<string, double> SignalsFrequencies { get; set; }
-	public Dictionary<string, double> SignalsValues { get; } = [];
+	public abstract Dictionary<string, Signal> Signals { get; set; }
+	public abstract Dictionary<string, Signal> SignalsAvailable { get; set; }
+	public abstract Dictionary<string, Signal> SignalsChosen { get; set; }
 	public string StandardizedValue { get; protected set; } = "";
 	protected abstract bool[] ChannelsEnable{ get; set; }
 	public abstract int ChannelsNumber { get; set; }
@@ -26,7 +24,7 @@ public abstract class Device
 	public abstract Dictionary<string,string> ChannelFunctionsPolish { get; set; }
 	public abstract Dictionary<string,string> ChannelFunctionsUnits { get; set; }
 	public abstract List<string> ChannelFunctionsChosen { get; set; }
-	public abstract List<SignalState> SignalStates { get; set; }
+	public abstract List<RangeState> RangeStates { get; set; }
 	public enum DeviceState
 	{
 		None,
@@ -37,7 +35,7 @@ public abstract class Device
 		Error
 	}
 
-	public enum SignalState
+	public enum RangeState
 	{
 		Low,Normal,High
 	}
@@ -85,19 +83,14 @@ public abstract class Device
 
 	protected Device()
 	{
-		foreach (string signalName in SignalsAvailable)
-		{
-			SignalsValues.Add(signalName, 0.0);
-		}
-
-		Signals = new Dictionary<string, Dictionary<DateTime, double>>();
 	}
 
 	public abstract ErrorCode Initialize();
 	public abstract ErrorCode SetSignal(string signals);
 	public abstract ErrorCode SetUnit(string unit);
 	public abstract ErrorCode SetChannelFunction(string channelFunction);
-	public abstract ErrorCode SetSignals(List<string> signals);
+	public abstract ErrorCode SetSignals(List<Signal> signals);
+	public abstract ErrorCode SetFrequency(string signal, double frequency);
 	public abstract ErrorCode StartMeasurement();
 
 	public virtual string Retrieve()
@@ -187,18 +180,20 @@ public abstract class Device
 
 	public void AddSignalChosen(string signal, int index)
 	{
-		SignalsChosen[index] = signal;
+		SignalsChosen.Add(signal, Signals[signal]);
+		SignalsChosen[signal].Id = index;
+		//SignalsChosen[index] = ;
 		//SignalsChosen.Add(signal);
-		if (!Signals.ContainsKey(signal))
+		/*if (!Signals.ContainsKey(signal))
 			Signals.Add(signal, new Dictionary<DateTime, double>());
-		SignalsAvailable = SignalsAvailable.Where(s => s != signal).ToList();
+		SignalsAvailable = SignalsAvailable.Where(s => s != signal).ToList();*/
 		if (RetrieveData == RetrieveDataMode.Driver)
-			SetSignals(Signals.Keys.ToList());
+			SetSignals(SignalsChosen.Values.ToList());
 	}
 	public void DeleteSignalChosen(string signal)
 	{
 		SignalsChosen.Remove(signal);
-		Signals.Remove(signal);
-		SignalsAvailable.Add(signal);
+		//Signals.Remove(Signals.Find(s=>s.Name==signal));
+		//SignalsAvailable.Add(signal);
 	}
 }

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using SensorsInterface.Devices;
 using SensorsInterface.Devices.NeurobitOptima;
 using SensorsInterface.Devices.Simulator;
@@ -21,17 +22,15 @@ public partial class MainWindow
 	private List<Device> devices = [];
 	private List<Device> workingDevices = [];
 	private List<Device> lastAddedDevices = [];
-	private Dictionary<string, Device> hiddenDevices = new()
-	{
-		{ "NeurobitOptima", new NeurobitOptima() },
-		{ "DeviceSimulator", new DeviceSimulator() },
-	};
+
+	private List<Device> hiddenDevices =
+	[
+		new NeurobitOptima(),
+		new DeviceSimulator()
+	];
 
 	/*private NamedPipeServerStream? pipe;
 	private StreamWriter pipeWriter;*/
-
-	private SendMessageDelegate? sendMessage;
-	private Global global = new();
 
 	public MainWindow()
 	{
@@ -134,8 +133,6 @@ public partial class MainWindow
 		workingDevices = devices.Where(d => d.State == DeviceState.Working).ToList();
 	}
 
-	private delegate void SendMessageDelegate(string message);
-
 	private async void SendDataByPipe_OnChecked(object sender, RoutedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<RadioButton>(sender);
@@ -160,7 +157,8 @@ public partial class MainWindow
 
 	private void SendDataNone_OnChecked(object sender, RoutedEventArgs e)
 	{
-		sendMessage = null;
+		Device device = GetDeviceByInputName<RadioButton>(sender);
+		device.SendData = SendDataMode.None;
 	}
 
 	private void SignalsComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
@@ -168,53 +166,60 @@ public partial class MainWindow
 		Device device = GetDeviceByInputName<ComboBox>(sender);
 		ComboBox comboBox = sender as ComboBox;
 		string signal = comboBox.SelectedItem.ToString();
-		device.AddSignalChosen(signal,comboBox.SelectedIndex);
+		device.AddSignalChosen(signal, comboBox.SelectedIndex);
 	}
 
 	private void FrequencyComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<ComboBox>(sender);
 		ComboBox comboBox = sender as ComboBox;
-		string frequency = comboBox.SelectedItem.ToString();
+		double frequency = (double)comboBox.SelectedItem;
 		string signal = Util.FindChild<ComboBox>(MainGrid, $"{device.Code}Channel{comboBox.Name[^1]}")
 			.SelectedItem.ToString();
+		device.SetFrequency(signal, frequency);
+		//device.signalFrequencies[signal] = frequency;
 		//global.SimulatorSocket.Send(  Encoding.ASCII.GetBytes($"frequency:{signal}@{frequency}"));
 	}
+
 	private void ChannelFunctionComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<ComboBox>(sender);
 		ComboBox comboBox = sender as ComboBox;
 		string channelFunction = comboBox.SelectedItem.ToString();
 		string translated = device.ChannelFunctionsPolish.First(v => v.Value == channelFunction).Key;
-		Util.FindChild<TextBlock>(MainGrid, $"ChannelUnit{comboBox.Name[^1]}").Text = device.ChannelFunctionsUnits[translated];
+		Util.FindChild<TextBlock>(MainGrid, $"ChannelUnit{comboBox.Name[^1]}").Text =
+			device.ChannelFunctionsUnits[translated];
 		device.ChannelFunctionsChosen[int.Parse(comboBox.Name[^1].ToString())] = translated;
-		//global.SimulatorSocket.Send(  Encoding.ASCII.GetBytes($"frequency:{signal}@{frequency}"));
+		
+		GroupBox channelGroup = Util.FindChild<GroupBox>(MainGrid, $"{device.Code}Channel{comboBox.Name[^1]}");
+		WrapPanel frequencyWrapPanel = (channelGroup.Content as WrapPanel).Children[7] as WrapPanel;
+		frequencyWrapPanel.Visibility = translated == "Voltage" ? Visibility.Visible : Visibility.Hidden;
 	}
 
 	private void RefreshChannelValues()
 	{
-		/*DevicesListBox.Dispatcher.BeginInvoke((Action)(() =>
+		Dispatcher.BeginInvoke((Action)delegate
 		{
-			//Task.Delay(500);
-			foreach (var device in devices)
+			int i = -1;
+			foreach (var device in hiddenDevices)
 			{
+				i++;
+				if (!workingDevices.Contains(device)) continue;
+				UIElementCollection channels = ((MainGrid.Children[i] as StackPanel).Children[2] as WrapPanel).Children;
 				for (int j = 0; j < device.SignalsChosen.Count; j++)
 				{
+					WrapPanel channel = (channels[j] as GroupBox).Content as WrapPanel;
 					int j1 = j;
-					//Task.Run(() =>
-					{
-						string signal = device.SignalsChosen[j1];
-						WrapPanel wrapPanel = (((DevicesListBox.Children[0] as StackPanel).Children[1] as WrapPanel).Children[j1 + 1] as GroupBox).Content as WrapPanel;
-						//TextBlock channelValue = Util.FindChild<TextBlock>(wrapPanel, $"ChannelValue{j1}");
-						TextBlock channelValue = wrapPanel.Children[2] as TextBlock;
-						var values = device.Signals[signal].Values;
-						channelValue.Text = values.Count > 0 ? Format(device.Signals[signal].Values.Last()) : "0.0";
-						double value = double.Parse(channelValue.Text);
-						UpdateChannelValueIndicator(wrapPanel, device, value, j1+1);
-					} //);
+					string signal = device.SignalsChosen.FindByIndex(j1).Name;
+					TextBlock channelValue = channel.Children[3] as TextBlock;
+					var values = device.Signals[signal].Values;
+					channelValue.Text = values.Count > 0 ? Format(device.Signals[signal].Values.Last().Value) : "0.0";
+					double value = double.Parse(channelValue.Text);
+					WrapPanel rangeWrapPanel = (channel.Children[5] as WrapPanel).Children[1] as WrapPanel;
+					UpdateChannelValueIndicator(rangeWrapPanel, device, value, j1);
 				}
 			}
-		}));*/
+		});
 	}
 
 	public static string Format(double number)
@@ -231,22 +236,24 @@ public partial class MainWindow
 		{
 			channelValueIndicator.Text = value < min ? "\u2b0a" : "\u2b08";
 			channelValueIndicator.Foreground = new SolidColorBrush(Color.FromRgb(205, 0, 50));
-			device.SignalStates[number] = value < min ? SignalState.Low : SignalState.High;
+			device.RangeStates[number] = value < min ? RangeState.Low : RangeState.High;
 		}
 
 		if (value > min && value < max)
 		{
 			channelValueIndicator.Text = "✔";
 			channelValueIndicator.Foreground = new SolidColorBrush(Color.FromRgb(0, 255, 0));
-			device.SignalStates[number] = SignalState.Normal;
+			device.RangeStates[number] = RangeState.Normal;
 		}
 	}
+
 //
 	private void RetrieveDataByDriver_OnChecked(object sender, RoutedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<RadioButton>(sender);
 		device.RetrieveData = RetrieveDataMode.Driver;
 	}
+
 //
 	private void RetrieveDataByUdp_OnChecked(object sender, RoutedEventArgs e)
 	{
@@ -286,6 +293,6 @@ public partial class MainWindow
 
 	public T GetInputByDeviceName<T>(string inputType, string deviceName) where T : Control
 	{
-		return Util.FindChild<T>(MainGrid, deviceName+inputType);
+		return Util.FindChild<T>(MainGrid, deviceName + inputType);
 	}
 }

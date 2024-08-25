@@ -11,10 +11,7 @@ namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima : Device
 {
-	public override List<string> SignalsAvailable { get; set; } =
-	[
-		"EEG", "EKG", "HRV", "SCP", "BMP", "GSR", "RESP_TEMP", "BVP", "EMG"
-	];
+	public override Dictionary<string, Signal> SignalsAvailable { get; set; } = new();
 
 	/*public override List<string> SignalsAvailable { get; set; } =
 	[
@@ -22,8 +19,26 @@ public unsafe partial class NeurobitOptima : Device
 		"EMG"
 	];*/
 
-	public override List<string> SignalsChosen { get; set; } = [..new string[4]];
-	public override Dictionary<string, Dictionary<DateTime, double>> Signals { get; set; }
+	public override Dictionary<string,Signal> Signals { get; set; } = new()
+	{
+		["EEG"] = new Signal
+		{
+			Name = "EEG", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		},
+		["EKG"] = new Signal
+		{
+			Name = "EKG", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		},
+		["EOG"] = new Signal
+		{
+			Name = "EOG", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		},
+		["HRV"] = new Signal
+		{
+			Name = "HRV", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		},
+	};
+	public override Dictionary<string,Signal> SignalsChosen { get; set; }
 	public override List<double> Frequencies { get; set; } = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 
 	public override List<string> ChannelFunctions { get; set; } =
@@ -46,7 +61,7 @@ public unsafe partial class NeurobitOptima : Device
 	};
 
 	public override List<string> ChannelFunctionsChosen { get; set; } = [];
-	public override List<SignalState> SignalStates { get; set; }
+	public override List<RangeState> RangeStates { get; set; }
 	public override string Name { get; set; } = "Neurobit Optima+ 4 USB";
 	public override string Code { get; set; } = "NeurobitOptima";
 	protected override string DriverName => "NeurobitDrv64.dll";
@@ -155,20 +170,25 @@ public unsafe partial class NeurobitOptima : Device
 		return ErrorCode.Success;
 	}
 
-	public override ErrorCode SetSignals(List<string> signals)
+	public override ErrorCode SetSignals(List<Signal> signals)
 	{
 		for (short i = 0; i < signals.Count; i++)
 		{
 			if (NdSetParam(ParameterId("ND_PAR_CH_EN"), i, out setter) < 0)
 				return ErrorCode.DeviceChannelNotRun;
 
-			if (NdStr2Param(signals[i], ParameterId("ND_PAR_CH_PROF"), i) < 0)
+			if (NdStr2Param(signals[i].Name, ParameterId("ND_PAR_CH_PROF"), i) < 0)
 				return ErrorCode.DeviceProfileNotSet;
 		}
 
 		/* Write data header for the device and prepare info for sample processing */
 		AsciiWriteHeader(ref devInfo);
 		return ErrorCode.Success;
+	}
+
+	public override ErrorCode SetFrequency(string signal, double frequency)
+	{
+		throw new NotImplementedException();
 	}
 
 	public override ErrorCode StartMeasurement()
@@ -284,8 +304,6 @@ public unsafe partial class NeurobitOptima : Device
 
 		return value;
 	}
-
-	private bool endPointCreated = false;
 
 	protected override string RetrieveFromNetwork()
 	{

@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using SensorsInterface.Devices;
-using static SensorsInterface.Helpers.Error;
+using SensorsInterface.Helpers;
 using static SensorsInterface.Devices.Device;
 
 namespace SensorsInterface;
@@ -137,7 +137,7 @@ public partial class MainWindow
 			return;
 		}*/
 
-		foreach (Device device in hiddenDevices.Values)
+		foreach (Device device in hiddenDevices)
 		{
 			Button button = new Button
 			{
@@ -209,8 +209,8 @@ public partial class MainWindow
 			MainGrid.Children.Add(panel);
 		}
 
-		//devices.Add(hiddenDevices["NeurobitOptima"]);
-		devices.Add(hiddenDevices["DeviceSimulator"]);
+		//devices.Add(hiddenDevices[0]);
+		devices.Add(hiddenDevices[1]);
 	}
 
 	private WrapPanel CreateHUDDevice(Device device)
@@ -240,20 +240,9 @@ public partial class MainWindow
 				Width = 80,
 				//Margin = new Thickness(0, 0, elementMargin, 0),
 				ItemsSource = device.SignalsAvailable,
-				SelectedItem = device.SignalsAvailable[0]
+				//SelectedItem = device.SignalsAvailable.FindByIndex(i)
 			};
 			signalsComboBox.SelectionChanged += SignalsComboBoxItemChanged;
-
-			//Częstotliwość
-			ComboBox frequencyComboBox = new ComboBox
-			{
-				Name = $"{device.Code}Frequency{i}",
-				Width = 80,
-				//Margin = new Thickness(0, 0, elementMargin, 0),
-				ItemsSource = device.Frequencies,
-				SelectedItem = device.Frequencies[0]
-			};
-			frequencyComboBox.SelectionChanged += FrequencyComboBoxItemChanged;
 
 			//ChannelFunction
 			ComboBox channelFunctionComboBox = new ComboBox
@@ -266,9 +255,21 @@ public partial class MainWindow
 			};
 			channelFunctionComboBox.SelectionChanged += ChannelFunctionComboBoxItemChanged;
 
+			//Częstotliwość
+			ComboBox frequencyComboBox = new ComboBox
+			{
+				Name = $"{device.Code}Frequency{i}",
+				Width = 80,
+				//Margin = new Thickness(0, 0, elementMargin, 0),
+				ItemsSource = device.Frequencies,
+				SelectedItem = device.Frequencies[0]
+			};
+			frequencyComboBox.SelectionChanged += FrequencyComboBoxItemChanged;
+
 			GroupBox groupBox = new GroupBox
 			{
 				Header = "Kanał " + (i + 1),
+				Name = $"{device.Code}Channel{i}",
 				Width = 800,
 				Height = 70,
 				//Margin = new Thickness(0, 30, 0, 0),
@@ -350,7 +351,7 @@ public partial class MainWindow
 						//Range
 						new WrapPanel
 						{
-							Name = $"RangeWrapPanel{i}0",
+							Name = $"RangeLabelWrapPanel{i}",
 							Orientation = Orientation.Vertical,
 							Margin = new Thickness(0, 0, elementMargin, 0),
 							Children =
@@ -397,22 +398,6 @@ public partial class MainWindow
 								},
 							}
 						},
-						//Frequency
-						new WrapPanel
-						{
-							Name = $"FrequencyWrapPanel{i}",
-							Orientation = Orientation.Vertical,
-							Margin = new Thickness(0, 0, elementMargin, 0),
-							Children =
-							{
-								new Label
-								{
-									Content = "Częstotliwość",
-									Margin = new Thickness(0, -10, 0, 0)
-								},
-								frequencyComboBox
-							}
-						},
 						//Channel Function
 						new WrapPanel
 						{
@@ -427,6 +412,22 @@ public partial class MainWindow
 									Margin = new Thickness(0, -10, 0, 0)
 								},
 								channelFunctionComboBox
+							}
+						},
+						//Frequency
+						new WrapPanel
+						{
+							Name = $"{device.Code}FrequencyWrapPanel{i}",
+							Orientation = Orientation.Vertical,
+							Margin = new Thickness(0, 0, elementMargin, 0),
+							Children =
+							{
+								new Label
+								{
+									Content = "Częstotliwość",
+									Margin = new Thickness(0, -10, 0, 0)
+								},
+								frequencyComboBox
 							}
 						}
 					}
