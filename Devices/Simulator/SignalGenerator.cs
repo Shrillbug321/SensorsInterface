@@ -123,7 +123,7 @@ namespace SensorsInterface.Devices.Simulator
 			#endif
 		{
 			float value = 0f;
-			float t = frequency * time + phase;
+			float t = Frequency * time + phase;
 			switch (signalType)
 			{ // http://en.wikipedia.org/wiki/Waveform
 				case SignalType.Sine: // sin( 2 * pi * t )

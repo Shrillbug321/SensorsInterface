@@ -58,7 +58,7 @@ public static class Util
 			}
 			connectEvent.Set();
 		}, null);
-		Task.Delay(2000);
+		Thread.Sleep(2000);
 		if (e!=null)
 			stream.Close();
 		if (e != null)
@@ -109,15 +109,32 @@ public static class Util
 		return foundChild;
 	}
 
-	public static V FindByIndex<K, V>(this Dictionary<K, V> dictionary, int index)
+	public static K FindKeyByIndex<K, V>(this Dictionary<K, V> dictionary, int index, K defaultObject = default)
+	{
+		return FindByIndex(dictionary, index).Key ?? defaultObject;
+	}
+	public static V FindValueByIndex<K, V>(this Dictionary<K, V> dictionary, int index, V defaultObject = default)
+	{
+		return FindByIndex(dictionary, index).Value ?? defaultObject;
+	}
+	
+	public static KeyValuePair<K,V> FindByIndex<K, V>(this Dictionary<K, V> dictionary, int index, KeyValuePair<K,V> defaultObject = default)
+	{
+		int i = 0;
+		foreach (var pair in dictionary.Where(pair => i++ == index))
+			return pair;
+		return defaultObject;
+	}
+	
+	public static int FindIndexByKey<K, V>(this Dictionary<K, V> dictionary, K key)
 	{
 		int i = 0;
 		foreach (var pair in dictionary)
 		{
-			if (i++ == index)
-				return pair.Value;
+			if (pair.Key.ToString() == key.ToString())
+				return i;
+			i++;
 		}
-
-		throw new Exception();
+		return -1;
 	}
 }

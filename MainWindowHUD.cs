@@ -21,7 +21,7 @@ public partial class MainWindow
 	};
 
 	private const double ellipseSize = 18;
-	private const double deviceHeight = 75;
+	private const double deviceHeight = 360;
 	private const double elementMargin = 15;
 	private const double elementMarginThin = 5;
 	private const double elementFlatMarginTop = 14;
@@ -127,21 +127,13 @@ public partial class MainWindow
 
 	private void CreateHUD()
 	{
-		/*if (devices.Count == 0)
-		{
-			TextBlock tb = new TextBlock
-			{
-				Text = "Nie podłączono żadnego urządzenia"
-			};
-			DevicesListBox.Children.Add(tb);
-			return;
-		}*/
-
+		int i = 0;
 		foreach (Device device in hiddenDevices)
 		{
 			Button button = new Button
 			{
-				Content = "Uruchom urządzenie"
+				Content = "Rozpocznij pomiary",
+				Width = 130
 			};
 
 			button.Click += (_, _) =>
@@ -155,21 +147,22 @@ public partial class MainWindow
 						/*if ((GetInputByDeviceName<RadioButton>("SendDataNone", device.Code)).IsChecked == true)
 							ShowMessageBox(ErrorCode.SendDataModeNotSelected);*/
 						device.State = DeviceState.Working;
-						button.Content = "Zatrzymaj urządzenie";
+						button.Content = "Zatrzymaj pomiary";
 						break;
 					case DeviceState.Working:
 						device.State = DeviceState.Initialized;
-						button.Content = "Uruchom urządzenie";
+						button.Content = "Rozpocznij pomiary";
 						break;
 				}
 			};
-			Canvas.SetLeft(button, 645);
+			Canvas.SetLeft(button, 630);
 
 			StackPanel panel = new()
 			{
 				Name = $"{device.Code}Panel",
 				Visibility = Visibility.Collapsed,
 				Orientation = Orientation.Vertical,
+				//Margin = new Thickness(windowMargin, i++*deviceHeight, 0, 0),
 				Children =
 				{
 					CreateButtons(device.Code),
@@ -208,9 +201,21 @@ public partial class MainWindow
 			//Canvas.SetLeft(tb, ellipseSize);
 			MainGrid.Children.Add(panel);
 		}
-
-		//devices.Add(hiddenDevices[0]);
-		devices.Add(hiddenDevices[1]);
+		MainGrid.Children.Add(new StackPanel
+		{
+			Name = "NotFoundDevices",
+			Children =
+			{
+				new TextBlock
+				{
+					Text = "⚠ Nie podłączono żadnego urządzenia ⚠",
+					Margin = new Thickness(0, 150, 50, 0),
+					FontSize = 15,
+					HorizontalAlignment = HorizontalAlignment.Center,
+					VerticalAlignment = VerticalAlignment.Center
+				}
+			}
+		});
 	}
 
 	private WrapPanel CreateHUDDevice(Device device)
@@ -239,8 +244,8 @@ public partial class MainWindow
 				Name = $"{device.Code}Channel{i}",
 				Width = 80,
 				//Margin = new Thickness(0, 0, elementMargin, 0),
-				ItemsSource = device.SignalsAvailable,
-				//SelectedItem = device.SignalsAvailable.FindByIndex(i)
+				ItemsSource = device.Signals.Keys,
+				SelectedItem = device.SignalsChosen.FindKeyByIndex(i)
 			};
 			signalsComboBox.SelectionChanged += SignalsComboBoxItemChanged;
 
@@ -332,7 +337,7 @@ public partial class MainWindow
 						{
 							Name = $"ChannelValue{i}",
 							Text = "——",
-							Width = 40,
+							Width = 60,
 							FontSize = 16,
 							FontWeight = FontWeights.SemiBold,
 							TextAlignment = TextAlignment.Center,
@@ -359,7 +364,7 @@ public partial class MainWindow
 								new Label
 								{
 									Content = "Zakres",
-									Margin = new Thickness(2 * elementMargin, -8, 2 * elementMargin, 0),
+									Margin = new Thickness(4 * elementMargin, -8, 2 * elementMargin, 0),
 								},
 								new WrapPanel
 								{
@@ -371,6 +376,7 @@ public partial class MainWindow
 											Name = $"ChannelValueIndicator{i}",
 											Margin = new Thickness(0, 0, elementMarginThin, 0),
 											Text = "❔",
+											Width = 15,
 											Foreground = new SolidColorBrush(Color.FromRgb(255, 190, 0))
 										},
 										new TextBlock
@@ -382,7 +388,9 @@ public partial class MainWindow
 										{
 											Name = $"MinRangeValue{i}",
 											Text = "50",
+											Width = 45,
 											Margin = new Thickness(0, 0, elementMarginThin, 0),
+											TextAlignment = TextAlignment.Center
 										},
 										new TextBlock
 										{
@@ -392,7 +400,9 @@ public partial class MainWindow
 										new TextBox
 										{
 											Name = $"MaxRangeValue{i}",
-											Text = "80"
+											Text = "80",
+                                            Width = 45,
+                                            TextAlignment = TextAlignment.Center
 										}
 									}
 								},
@@ -443,11 +453,21 @@ public partial class MainWindow
 	{
 		Dispatcher.BeginInvoke((Action)delegate
 		{
-			foreach (Device device in devices)
+			if (devices.Count == 0)
 			{
-				StackPanel stackPanel =
-					MainGrid.Children.OfType<StackPanel>().First(p => p.Name == $"{device.Code}Panel");
-				stackPanel.Visibility = Visibility.Visible;
+				foreach (UIElement panel in MainGrid.Children)
+					panel.Visibility = Visibility.Collapsed;
+				MainGrid.Children[^1].Visibility = Visibility.Visible;
+			}
+			else
+			{
+				foreach (Device device in devices)
+				{
+					StackPanel stackPanel =
+						MainGrid.Children.OfType<StackPanel>().First(p => p.Name == $"{device.Code}Panel");
+					stackPanel.Visibility = Visibility.Visible;
+				}
+				MainGrid.Children[^1].Visibility = Visibility.Collapsed;
 			}
 		});
 	}

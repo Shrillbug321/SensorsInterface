@@ -11,9 +11,13 @@ public class DeviceSimulator : Device
 
 	public override Dictionary<string, Signal> Signals { get; set; } = new()
 	{
-		["EKG"] = new Signal
+		["BPM"] = new Signal
 		{
-			Name = "EKG", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+			Name = "BPM", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		},
+		["GSR"] = new Signal
+		{
+			Name = "GSR", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		},
 		["BVP"] = new Signal
 		{
@@ -23,14 +27,24 @@ public class DeviceSimulator : Device
 		{
 			Name = "HRV", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		},
-		["GSR"] = new Signal
+		["RESP_TEMP"] = new Signal
 		{
-			Name = "GSR", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+			Name = "RESP_TEMP", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		},
+		["RESP_BELT"] = new Signal
+		{
+			Name = "RESP_BELT", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		}
 	};
 
-	public override Dictionary<string, Signal> SignalsChosen { get; set; }
-	public override Dictionary<string, Signal> SignalsAvailable { get; set; } = [];
+	public override Dictionary<string, Signal> SignalsChosen { get; set; } = [];
+	public override Dictionary<string, Signal> SignalsAvailable { get; set; } = new()
+	{
+		["RESP_TEMP"] = new Signal
+		{
+			Name = "RESP_TEMP", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+		}
+	};
 
 	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
 	public override int ChannelsNumber { get; set; } = 4;
@@ -67,22 +81,33 @@ public class DeviceSimulator : Device
 	private int gain = 40;
 	private int offset = 50;
 
-	public override Error.ErrorCode Initialize()
+	public DeviceSimulator()
 	{
 		SignalsChosen = new Dictionary<string, Signal>(Signals);
-		SignalsChosen["EKG"].Id = 0;
-		SignalsChosen["BVP"].Id = 1;
-		SignalsChosen["HRV"].Id = 2;
-		SignalsChosen["GSR"].Id = 3;
+        SignalsChosen.Remove("RESP_TEMP");
+        SignalsChosen.Remove("RESP_BELT");
+        SignalsChosen["BPM"].Id = 0;
+        SignalsChosen["GSR"].Id = 1;
+        SignalsChosen["BVP"].Id = 2;
+        SignalsChosen["HRV"].Id = 3;
+	}
+	
+	public override Error.ErrorCode Initialize()
+	{
+		SignalsAvailable = new Dictionary<string, Signal>(Signals);
+		SignalsAvailable = SignalsAvailable.Where(s => !Signals.ContainsKey(s.Key)).ToDictionary();
 		signalGenerator = new SignalGenerator[ChannelsNumber];
 		//ChannelFunctionsChosen = [..new string[4]];
 		RangeStates = [..new RangeState[4]];
 		DateTime now = DateTime.Now;
 		for (int i = 0; i < SignalsChosen.Count; i++)
 		{
-			signalGenerator[i] = new SignalGenerator(SignalType.Sine);
-			if (i > 0) signalGenerator[i].Synchronize(signalGenerator[0]);
-			ticks.Add(now.AddMicroseconds(1000000 / SignalsChosen.FindByIndex(i).Frequency) - now);
+			signalGenerator[i] = new SignalGenerator(SignalType.Sine)
+			{
+				Frequency = float.Parse(SignalsChosen.FindValueByIndex(i).Frequency.ToString())
+			};
+			//if (i > 0) signalGenerator[i].Synchronize(signalGenerator[0]);
+			ticks.Add(now.AddMicroseconds(1000000 / SignalsChosen.FindValueByIndex(i).Frequency) - now);
 			lastTime.Add(now);
 		}
 
@@ -124,10 +149,13 @@ public class DeviceSimulator : Device
 	{
 		DateTime now = DateTime.Now;
 		//SignalsChosen.Find()
-		int i = SignalsChosen[signal].Id;
+		int i = SignalsChosen.FindIndexByKey(signal);
 		SignalsChosen[signal].Frequency = frequency;
-		signalGenerator[i] = new SignalGenerator(SignalType.Sine);
-		if (i > 0) signalGenerator[i].Synchronize(signalGenerator[0]);
+		signalGenerator[i] = new SignalGenerator(SignalType.Sine)
+		{
+			Frequency = float.Parse(SignalsChosen.FindValueByIndex(i).Frequency.ToString())
+		};
+		//if (i > 0) signalGenerator[i].Synchronize(signalGenerator[0]);
 		ticks[i] = now.AddMicroseconds(1000000 / frequency) - now;
 		return Error.ErrorCode.Success;
 	}
@@ -203,7 +231,7 @@ public class DeviceSimulator : Device
 		StandardizedValue = "[";
 		for (int i = 0; i < SignalsChosen.Count; i++)
 		{
-			Signal signal = Signals.FindByIndex(i);
+			Signal signal = Signals.FindValueByIndex(i);
 			if (signal.Values.Count == 0) continue;
 			KeyValuePair<DateTime, double> pair = signal.Values.Last();
 			StandardizedValue += FHIR.FHIR.CreateObservation(signal.Name, pair.Value, pair.Key,
@@ -221,6 +249,12 @@ public class DeviceSimulator : Device
 
 	public override void Close()
 	{
-		throw new NotImplementedException();
+		//Simulator don't need closing
+	}
+
+	public override Error.ErrorCode CheckDeviceState()
+	{
+		return Error.ErrorCode.Success;
+		//return Error.ErrorCode.DeviceIsDisconnected;
 	}
 }

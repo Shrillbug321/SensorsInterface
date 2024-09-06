@@ -38,7 +38,8 @@ public unsafe partial class NeurobitOptima : Device
 			Name = "HRV", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		},
 	};
-	public override Dictionary<string,Signal> SignalsChosen { get; set; }
+
+	public override Dictionary<string, Signal> SignalsChosen { get; set; } = [];
 	public override List<double> Frequencies { get; set; } = [1, 2, 5, 10, 20, 50, 100, 200, 500];
 
 	public override List<string> ChannelFunctions { get; set; } =
@@ -99,6 +100,11 @@ public unsafe partial class NeurobitOptima : Device
 		{ "Sensor", ("ND_PAR_CH_TRANSDUCER", "ND_T_LIST", "ND_T_TEXT") },
 	};
 
+	public NeurobitOptima()
+	{
+		SignalsChosen = new Dictionary<string, Signal>(Signals);
+	}
+	
 	public override ErrorCode Initialize()
 	{
 		//InitSocket();
@@ -246,7 +252,7 @@ public unsafe partial class NeurobitOptima : Device
 		dev.dev_chans = ChannelsNumber;
 		return ChannelsNumber;
 	}
-
+	
 	protected override string RetrieveFromDriver()
 	{
 		value = "";
@@ -262,9 +268,10 @@ public unsafe partial class NeurobitOptima : Device
 				{
 					if (!IsValueProperlyGet(header, i))
 					{
-						MessageBoxResult result = ShowMessageBox(ErrorCode.DeviceMeasurementReadError, "Błąd odczytu", $"{header};");
-						if (result == MessageBoxResult.Yes) continue;
-						return $"Optima Error {header}";
+						/*MessageBoxResult result = ShowMessageBox(ErrorCode.DeviceMeasurementReadError, $"{header};");
+						if (result == MessageBoxResult.Yes) continue;*/
+						if (ErrorCounter++==10)
+							return $"Optima Error {header}";
 					}
 				}
 
@@ -313,6 +320,8 @@ public unsafe partial class NeurobitOptima : Device
 		//if ()
 		IpEndPoints[retrievePort] = endPoint;
 		value = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
+		if (value == "")
+			ErrorCounter++;
 		return value;
 	}
 
@@ -389,6 +398,16 @@ public unsafe partial class NeurobitOptima : Device
 		NdCloseDevContext(devInfo.deviceContext);
 	}
 
+	public override ErrorCode CheckDeviceState()
+	{
+		if (ErrorCounter >= 10)
+		{
+			Close();
+			return ErrorCode.DeviceIsDisconnected;
+		}
+		return ErrorCode.Success;
+	}
+	
 	private static bool IsValueProperlyGet(string value, int channelNumber)
 	{
 		var tuple = gettersAssocations[value];

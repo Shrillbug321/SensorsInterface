@@ -52,7 +52,7 @@ public abstract class Device
 		}
 	}
 
-	public SolidColorBrush StateColor = new(Color.FromRgb(0, 128, 0));
+	public SolidColorBrush StateColor = new(Color.FromRgb(106, 128, 0));
 
 	public RetrieveDataMode RetrieveData = RetrieveDataMode.None;
 	public SendDataMode SendData = SendDataMode.None;
@@ -80,6 +80,7 @@ public abstract class Device
 	protected abstract string DriverPath { get; }
 
 	protected int DeviceContext { get; set; }
+	protected int ErrorCounter { get; set; }
 
 	protected Device()
 	{
@@ -92,6 +93,7 @@ public abstract class Device
 	public abstract ErrorCode SetSignals(List<Signal> signals);
 	public abstract ErrorCode SetFrequency(string signal, double frequency);
 	public abstract ErrorCode StartMeasurement();
+	public abstract ErrorCode CheckDeviceState();
 
 	public virtual string Retrieve()
 	{
@@ -178,8 +180,13 @@ public abstract class Device
 		});
 	}
 
-	public void AddSignalChosen(string signal, int index)
+	public string AddSignalChosen(string signal, int index, int indexOfChangedChannel)
 	{
+		if (SignalsChosen.ContainsKey(signal))
+		{
+			ShowMessageBox(ErrorCode.SignalIsChosen, signal);
+			return SignalsChosen.FindKeyByIndex(indexOfChangedChannel);
+		}
 		SignalsChosen.Add(signal, Signals[signal]);
 		SignalsChosen[signal].Id = index;
 		//SignalsChosen[index] = ;
@@ -189,6 +196,7 @@ public abstract class Device
 		SignalsAvailable = SignalsAvailable.Where(s => s != signal).ToList();*/
 		if (RetrieveData == RetrieveDataMode.Driver)
 			SetSignals(SignalsChosen.Values.ToList());
+		return "";
 	}
 	public void DeleteSignalChosen(string signal)
 	{
