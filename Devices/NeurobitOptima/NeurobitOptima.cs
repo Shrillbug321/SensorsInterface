@@ -1,7 +1,6 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using static SensorsInterface.Native.NativeMethods;
@@ -19,7 +18,7 @@ public unsafe partial class NeurobitOptima : Device
 		"EMG"
 	];*/
 
-	public override Dictionary<string,Signal> Signals { get; set; } = new()
+	public override Dictionary<string, Signal> Signals { get; set; } = new()
 	{
 		["EEG"] = new Signal
 		{
@@ -74,7 +73,6 @@ public unsafe partial class NeurobitOptima : Device
 
 	//private static bool[] ChannelsEnable = new bool[MAX_SIGNALS];
 	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
-
 	public override int ChannelsNumber { get; set; } = 4;
 
 	//Fields only for Optima
@@ -104,24 +102,24 @@ public unsafe partial class NeurobitOptima : Device
 	{
 		SignalsChosen = new Dictionary<string, Signal>(Signals);
 	}
-	
+
 	public override ErrorCode Initialize()
 	{
 		//InitSocket();
 		/*State = DeviceState.Initialized;
 		return ErrorCode.Success;*/
 		nint library = LoadLibrary(DriverPath);
-		
+
 		if (library == 0x0)
 			return ErrorCode.LibraryNotLoaded;
-		
+
 		devInfo = new DevContextInfo
 		{
 			model = Name, coeff = new float[MAX_SIGNALS]
 		};
 		//dev = &devInfo;
 		Console.WriteLine(GetLastError());
-		
+
 		/*if ((DeviceContext = ReadCfgFile(DefaultConfigName)) < 0)
 		{
 			/*Cannot read last configuration.
@@ -133,9 +131,8 @@ public unsafe partial class NeurobitOptima : Device
 				return ErrorCode.DeviceNotOpen;
 			}
 		}*/
-		ErrorCode code = GetChannelNumber();
 
-		return code;
+		return GetChannelNumber();
 
 		/*if (code != ErrorCode.Success) return code;
 
@@ -252,77 +249,92 @@ public unsafe partial class NeurobitOptima : Device
 		dev.dev_chans = ChannelsNumber;
 		return ChannelsNumber;
 	}
-	
+
 	protected override string RetrieveFromDriver()
 	{
-		value = "";
+		string message = "";
+		DateTime now = DateTime.Now;
 		List<string> signalHeaders = ["Channel", "Min", "Max", "Unit", "SR", "Label", "Sensor"];
 		for (short i = 0; i < ChannelsNumber; i++)
 		{
-			Console.WriteLine($"Channel {i}");
 			if (!ChannelsEnable[i]) continue;
-			
+
+			string channelValue = "";
 			foreach (string header in signalHeaders)
 			{
 				if (header != "Unit")
 				{
 					if (!IsValueProperlyGet(header, i))
 					{
-						/*MessageBoxResult result = ShowMessageBox(ErrorCode.DeviceMeasurementReadError, $"{header};");
-						if (result == MessageBoxResult.Yes) continue;*/
-						if (ErrorCounter++==10)
+						MessageBoxResult result = ShowMessageBox(ErrorCode.DeviceMeasurementReadError, $"{header};");
+						if (ErrorCounter++ == 10)
 							return $"Optima Error {header}";
+						if (result == MessageBoxResult.Yes)
+							continue;
 					}
 				}
 
 				switch (header)
 				{
 					case "Channel":
-						value += getter.val.t + "Ch;";
+						channelValue += getter.val.t + "Ch;";
 						devInfo.names = getter.val.t;
 						break;
 					case "Min":
-						value += getter.val.f + "Min;";
+						channelValue += getter.val.f + "Min;";
 						break;
 					case "Max":
-						value += getter.val.f + "Max;";
+						channelValue += getter.val.f + "Max;";
 						devInfo.coeff[i] = getter.val.f / 0x80000000ul;
 						break;
 					case "Unit":
-						/*NDPARAM* p = NdParamInfo(ParameterId("ND_PAR_CH_RANGE_MAX"), i);
-						value += p->unit + ";";*/
-						value += "U;";
+						NDPARAM* p = NdParamInfo(ParameterId("ND_PAR_CH_RANGE_MAX"), i);
+						channelValue += p->unit + "U;";
 						break;
 					case "SR":
-						value += getter.val.f + "SR;";
+						channelValue += getter.val.f + "SR;";
 						break;
 					case "Label":
-						value += getter.val.t + "L;";
+						channelValue += getter.val.t + "L;";
 						break;
 					case "Sensor":
-						value += getter.val.t + "S;";
+						channelValue += getter.val.t + "S;";
 						break;
 				}
 			}
 
-			value += "\r\n";
-			Console.WriteLine(value);
+			float value = float.Parse(channelValue.Split("L;")[1][..^2]);
+			message += $"{SignalsChosen.Values.First(s => s.Id == i).Name}={value}#{i}";
+			SignalsChosen.Values.First(s => s.Id == i).Values.Add(now, value);
 		}
 
-		return value;
+		return message;
 	}
 
 	protected override string RetrieveFromNetwork()
 	{
-		//if (!endPointCreated)
 		IPEndPoint endPoint = IpEndPoints[retrievePort];
-		//byte[] bytes = ;
-		//if ()
-		IpEndPoints[retrievePort] = endPoint;
-		value = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
-		if (value == "")
+		string message = "";
+		string retrieved = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
+
+		if (retrieved == "")
 			ErrorCounter++;
-		return value;
+
+		char[] separator = { '=', '#' };
+		string[] split = retrieved.Split('@');
+		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0])).DateTime.AddHours(2);
+
+		string[] channels = split[1].Split(';', StringSplitOptions.RemoveEmptyEntries);
+		for (int j = 0; j < channels.Length; j++)
+		{
+			if (!ChannelsEnable[j]) continue;
+			string[] splitObservation = channels[j].Split(separator, StringSplitOptions.RemoveEmptyEntries);
+
+			message += $"{date.ToString()}@{SignalsChosen.Values.First(s => s.Id == j).Name}={value}#{j}";
+			SignalsChosen.Values.First(s => s.Id == j).Values.Add(date.DateTime, double.Parse(splitObservation[1]));
+		}
+
+		return message;
 	}
 
 	protected override void SendByPipe(string message)
@@ -334,62 +346,6 @@ public unsafe partial class NeurobitOptima : Device
 	{
 		byte[] sendBytes = Encoding.ASCII.GetBytes(message);
 		sockets[sendPort].Send(sendBytes, sendBytes.Length);
-	}
-
-	public override void ConvertValueToStandard()
-	{
-		/*string[] split = value.Split('@');
-		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
-		string[] channels = split[1].Split(';');
-		DateTime date2 = date.DateTime.AddHours(2);
-		Console.WriteLine(date2);
-		for (int j = 0; j < channels.Length; j++)
-		{
-			string[] s = channels[j].Split('=');
-			if (!ChannelsEnable[j]) continue; // || !SignalsChosen.Contains(s[0])) continue;
-			s[1] = s[1].Split('#')[0];
-			Signals[s[0]] = new Dictionary<DateTime, double>
-			{
-				{ date2, double.Parse(s[1]) }
-			};
-			Console.WriteLine($"{s[0]}={s[1]}");
-		}*/
-	}
-
-	public override string ConvertValueToStandardString()
-	{
-		/*StandardizedValue = $"{DateTime.Now}/" +
-		                    $"81|1";*/
-		//data
-		//wartość|typ
-		//
-		//;
-		/*StandardizedValue = $"{DateTime.Now}\n";
-		string[] channels = value.Split('\n');
-		StandardizedValue += "[";
-		int i = 0;
-		foreach (string channel in channels)
-		{
-			string[] split = channel.Split(';');
-			//zależy od read()
-			//Format- wartość;typ (czyli numer kanału),
-			StandardizedValue += $"{split[1]}|{i++}\n";
-		}*/
-		/*string[] split = value.Split('@');
-		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
-		string[] channels = split[1].Split(';');
-		for (int j = 0; j < channels.Length; j++)
-		{
-			if (!ChannelsEnable[j]) continue;
-			string[] s = channels[j].Split('=');
-			s[1] = s[1].Split('#')[0];
-			Signals[s[0]] = new Dictionary<DateTime, double>
-			{
-				{ date.DateTime, double.Parse(s[1]) }
-			};
-		}*/
-
-		return Signals.ToString();
 	}
 
 	public override void Close()
@@ -405,9 +361,10 @@ public unsafe partial class NeurobitOptima : Device
 			Close();
 			return ErrorCode.DeviceIsDisconnected;
 		}
+
 		return ErrorCode.Success;
 	}
-	
+
 	private static bool IsValueProperlyGet(string value, int channelNumber)
 	{
 		var tuple = gettersAssocations[value];

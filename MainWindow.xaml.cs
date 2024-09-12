@@ -60,6 +60,7 @@ public partial class MainWindow
 			//Thread.Sleep(1000);
 			devices.Add(hiddenDevices[1]);
 		});
+		
 		Closing += AddDeviceClosing;
 
 		//Application.Current.Dispatcher.BeginInvoke((Action)(CreateHUD));
@@ -164,7 +165,7 @@ public partial class MainWindow
 	private void CheckApplicationsConnection()
 	{
 		Process[] processes = Process.GetProcesses();
-		foreach (string application in connectedApplications)
+		foreach (string application in connectedApplications.ToList())
 		{
 			if (processes.FirstOrDefault(p=>p.ProcessName == application, null)==null)
 			{

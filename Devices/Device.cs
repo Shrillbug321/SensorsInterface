@@ -112,7 +112,7 @@ public abstract class Device
 	protected abstract string RetrieveFromDriver();
 	protected abstract string RetrieveFromNetwork();
 
-	public virtual void Send(string message)
+	public void Send(string message)
 	{
 		switch (SendData)
 		{
@@ -129,12 +129,23 @@ public abstract class Device
 
 	protected abstract void SendByPipe(string message);
 	protected abstract void SendByNetwork(string message);
-
-	public abstract void ConvertValueToStandard();
-	public abstract string ConvertValueToStandardString();
-
+	
 	public abstract void Close();
 	
+	public void ConvertValueToStandard()
+	{
+		StandardizedValue = "[";
+		for (int i = 0; i < SignalsChosen.Count; i++)
+		{
+			Signal signal = Signals.FindValueByIndex(i);
+			if (signal.Values.Count == 0) continue;
+			KeyValuePair<DateTime, double> pair = signal.Values.Last();
+			StandardizedValue += FHIR.FHIR.CreateJsonObservation(signal.Name, pair.Value, pair.Key,
+				ChannelFunctionsUnits[ChannelFunctionsChosen[i]], RangeStates[i].ToString()) + ",\n";
+		}
+
+		StandardizedValue += "]@#";
+	}
 	public ErrorCode CreateSocket(string mode)
 	{
 		int port = mode == "Retrieve" ? retrievePort : sendPort;

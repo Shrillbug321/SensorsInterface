@@ -8,7 +8,6 @@ public class DeviceSimulator : Device
 {
 	public override string Name { get; set; } = "DeviceSimulator";
 	public override string Code { get; set; } = "DeviceSimulator";
-
 	public override Dictionary<string, Signal> Signals { get; set; } = new()
 	{
 		["BPM"] = new Signal
@@ -23,9 +22,9 @@ public class DeviceSimulator : Device
 		{
 			Name = "BVP", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		},
-		["HRV"] = new Signal
+		["EMG"] = new Signal
 		{
-			Name = "HRV", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
+			Name = "EMG", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		},
 		["RESP_TEMP"] = new Signal
 		{
@@ -89,7 +88,7 @@ public class DeviceSimulator : Device
         SignalsChosen["BPM"].Id = 0;
         SignalsChosen["GSR"].Id = 1;
         SignalsChosen["BVP"].Id = 2;
-        SignalsChosen["HRV"].Id = 3;
+        SignalsChosen["EMG"].Id = 3;
 	}
 	
 	public override Error.ErrorCode Initialize()
@@ -97,12 +96,11 @@ public class DeviceSimulator : Device
 		SignalsAvailable = new Dictionary<string, Signal>(Signals);
 		SignalsAvailable = SignalsAvailable.Where(s => !Signals.ContainsKey(s.Key)).ToDictionary();
 		signalGenerator = new SignalGenerator[ChannelsNumber];
-		//ChannelFunctionsChosen = [..new string[4]];
 		RangeStates = [..new RangeState[4]];
 		DateTime now = DateTime.Now;
 		for (int i = 0; i < SignalsChosen.Count; i++)
 		{
-			signalGenerator[i] = new SignalGenerator(SignalType.Sine)
+			signalGenerator[i] = new SignalGenerator(SignalType.Linear)
 			{
 				Frequency = float.Parse(SignalsChosen.FindValueByIndex(i).Frequency.ToString())
 			};
@@ -226,35 +224,16 @@ public class DeviceSimulator : Device
 		sockets[sendPort].Send(sendBytes, sendBytes.Length);
 	}
 
-	public override void ConvertValueToStandard()
-	{
-		StandardizedValue = "[";
-		for (int i = 0; i < SignalsChosen.Count; i++)
-		{
-			Signal signal = Signals.FindValueByIndex(i);
-			if (signal.Values.Count == 0) continue;
-			KeyValuePair<DateTime, double> pair = signal.Values.Last();
-			StandardizedValue += FHIR.FHIR.CreateObservation(signal.Name, pair.Value, pair.Key,
-				ChannelFunctionsUnits[ChannelFunctionsChosen[i]], RangeStates[i].ToString()) + ",\n";
-		}
-
-		StandardizedValue += "]@#";
-		//FHIR.FHIR.GetObservationsFromText(StandardizedValue);
-	}
-
-	public override string ConvertValueToStandardString()
-	{
-		throw new NotImplementedException();
-	}
-
 	public override void Close()
 	{
 		//Simulator don't need closing
 	}
 
+	private int disconnect;
 	public override Error.ErrorCode CheckDeviceState()
 	{
-		return Error.ErrorCode.Success;
+		return disconnect++ >= 20 ? Error.ErrorCode.DeviceIsDisconnected : Error.ErrorCode.Success;
+		//return Error.ErrorCode.Success;
 		//return Error.ErrorCode.DeviceIsDisconnected;
 	}
 }

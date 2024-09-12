@@ -387,7 +387,7 @@ public partial class MainWindow
 										new TextBox
 										{
 											Name = $"MinRangeValue{i}",
-											Text = "50",
+											Text = "57.6",
 											Width = 45,
 											Margin = new Thickness(0, 0, elementMarginThin, 0),
 											TextAlignment = TextAlignment.Center
@@ -400,7 +400,7 @@ public partial class MainWindow
 										new TextBox
 										{
 											Name = $"MaxRangeValue{i}",
-											Text = "80",
+											Text = "95.4",
                                             Width = 45,
                                             TextAlignment = TextAlignment.Center
 										}

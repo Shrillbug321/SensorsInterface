@@ -152,6 +152,9 @@ namespace SensorsInterface.Devices.Simulator
 				case SignalType.DigitalNoise: //Binary Bit Generators
 					value = random.Next(2);
 					break;
+				case SignalType.Linear: //Linear generator
+					value = random.Next(500)/1000f;
+					break;
 					
 				case SignalType.UserDefined:
 					value = (getValueCallback==null) ? (0f): getValueCallback(t);
@@ -194,6 +197,7 @@ namespace SensorsInterface.Devices.Simulator
 		WhiteNoise,    // random between -1 and 1
 		GaussNoise,	   // random between -1 and 1 with normal distribution
 		DigitalNoise,
+		Linear,
 		
 		UserDefined    // user defined between -1 and 1	}
 	}
