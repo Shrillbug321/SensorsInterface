@@ -10,8 +10,6 @@ namespace SensorsInterface.Devices.NeurobitOptima;
 
 public unsafe partial class NeurobitOptima : Device
 {
-	public override Dictionary<string, Signal> SignalsAvailable { get; set; } = new();
-
 	/*public override List<string> SignalsAvailable { get; set; } =
 	[
 		"EEG", "EKG", "EOG", "HRV", "SCP", "RESP", "nIR_HEG", "pIR_HEG", "BMP", "GSR", "RESP_BELT", "RESP_TEMP", "BVP",
@@ -71,7 +69,6 @@ public unsafe partial class NeurobitOptima : Device
 
 	private DevContextInfo devInfo;
 
-	//private static bool[] ChannelsEnable = new bool[MAX_SIGNALS];
 	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
 	public override int ChannelsNumber { get; set; } = 4;
 
@@ -105,9 +102,6 @@ public unsafe partial class NeurobitOptima : Device
 
 	public override ErrorCode Initialize()
 	{
-		//InitSocket();
-		/*State = DeviceState.Initialized;
-		return ErrorCode.Success;*/
 		nint library = LoadLibrary(DriverPath);
 
 		if (library == 0x0)
@@ -117,8 +111,6 @@ public unsafe partial class NeurobitOptima : Device
 		{
 			model = Name, coeff = new float[MAX_SIGNALS]
 		};
-		//dev = &devInfo;
-		Console.WriteLine(GetLastError());
 
 		/*if ((DeviceContext = ReadCfgFile(DefaultConfigName)) < 0)
 		{
@@ -133,10 +125,6 @@ public unsafe partial class NeurobitOptima : Device
 		}*/
 
 		return GetChannelNumber();
-
-		/*if (code != ErrorCode.Success) return code;
-
-		return ErrorCode.Success;*/
 	}
 
 	public override ErrorCode SetSignal(string signals)
@@ -165,11 +153,7 @@ public unsafe partial class NeurobitOptima : Device
 #if DEBUG
 		ChannelsNumber = 4;
 #endif
-
-		/* Example of automatic device configuration:
-		Enable all versatile channels and set "EEG" profile for them. */
 		setter.val.b = true;
-
 		return ErrorCode.Success;
 	}
 
@@ -184,7 +168,6 @@ public unsafe partial class NeurobitOptima : Device
 				return ErrorCode.DeviceProfileNotSet;
 		}
 
-		/* Write data header for the device and prepare info for sample processing */
 		AsciiWriteHeader(ref devInfo);
 		return ErrorCode.Success;
 	}
@@ -205,21 +188,6 @@ public unsafe partial class NeurobitOptima : Device
 			0 => ErrorCode.Success
 		};
 	}
-
-	/*private void InitSocket()
-	{
-		udpClient = new();
-		remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 8054);
-		try
-		{
-			udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-			udpClient.Client.Bind(remoteIpEndPoint);
-		}
-		catch (Exception e)
-		{
-			Console.WriteLine(e.ToString());
-		}
-	}*/
 
 	/* Write dump header. The function sets sample coefficients (int to real)
 	and names for individual channels in the *dev structure for further use.

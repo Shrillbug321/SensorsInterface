@@ -19,8 +19,8 @@ namespace SensorsInterface.Devices.Simulator
 		/// </summary>
 		public SignalType SignalType
 		{
-			get { return signalType; }
-			set { signalType = value; }
+			get => signalType;
+			set => signalType = value;
 		}
 		
 		private float frequency = 1f;
@@ -29,18 +29,18 @@ namespace SensorsInterface.Devices.Simulator
 		/// </summary>
 		public float Frequency
 		{
-			get { return frequency; }
-			set { frequency = value; }
+			get => frequency;
+			set => frequency = value;
 		}
 		
-		private float phase = 0f;
+		private float phase;
 		/// <summary>
 		/// Signal Phase.
 		/// </summary>
 		public float Phase
 		{
-			get { return phase; }
-			set { phase = value; }
+			get => phase;
+			set => phase = value;
 		}
 		
 		private float amplitude = 1f;
@@ -49,19 +49,18 @@ namespace SensorsInterface.Devices.Simulator
 		/// </summary>
 		public float Amplitude
 		{
-			get { return amplitude; }
-			set { amplitude = value; }
-			
+			get => amplitude;
+			set => amplitude = value;
 		}
 		
-		private float offset = 0f;
+		private float offset;
 		/// <summary>
 		/// Signal Offset.
 		/// </summary>
 		public float Offset
 		{
-			get { return offset; }
-			set { offset = value; }
+			get => offset;
+			set => offset = value;
 		}
 
 		private float invert = 1; // Yes=-1, No=1
@@ -70,18 +69,18 @@ namespace SensorsInterface.Devices.Simulator
 		/// </summary>
 		public bool Invert
 		{
-			get { return invert==-1; }
-			set { invert = value ? -1 : 1; }
+			get => invert==-1;
+			set => invert = value ? -1 : 1;
 		}
 		
-		private GetValueDelegate getValueCallback = null;
+		private GetValueDelegate getValueCallback;
 		/// <summary>
 		/// GetValue Callback?
 		/// </summary>
 		public GetValueDelegate GetValueCallback
 		{
-			get { return getValueCallback; }
-			set { getValueCallback = value; }
+			get => getValueCallback;
+			set => getValueCallback = value;
 		}
 		
 		#endregion  [ Properties ]
@@ -91,7 +90,7 @@ namespace SensorsInterface.Devices.Simulator
 		/// <summary>
 		/// Random provider for noise generator
 		/// </summary>
-		private Random random = new Random();
+		private Random random = new();
 
 		/// <summary>
 		/// Time the signal generator was started
@@ -124,44 +123,32 @@ namespace SensorsInterface.Devices.Simulator
 		{
 			float value = 0f;
 			float t = Frequency * time + phase;
-			switch (signalType)
-			{ // http://en.wikipedia.org/wiki/Waveform
-				case SignalType.Sine: // sin( 2 * pi * t )
-					value = (float)Math.Sin(2f*Math.PI*t);
-					break;
-				case SignalType.Square: // sign( sin( 2 * pi * t ) )
-					value = Math.Sign(Math.Sin(2f*Math.PI*t));
-					break;
-				case SignalType.Triangle: // 2 * abs( t - 2 * floor( t / 2 ) - 1 ) - 1
-					value = 1f-4f*(float)Math.Abs( Math.Round(t-0.25f)-(t-0.25f) );
-					break;
-				case SignalType.Sawtooth: // 2 * ( t/a - floor( t/a + 1/2 ) )
-					value = 2f*(t-(float)Math.Floor(t+0.5f));
-					break;
-					
+			value = signalType switch
+			{
+				// http://en.wikipedia.org/wiki/Waveform
+				SignalType.Sine => // sin( 2 * pi * t )
+					(float)Math.Sin(2f * Math.PI * t),
+				SignalType.Square => // sign( sin( 2 * pi * t ) )
+					Math.Sign(Math.Sin(2f * Math.PI * t)),
+				SignalType.Triangle => // 2 * abs( t - 2 * floor( t / 2 ) - 1 ) - 1
+					1f - 4f * (float)Math.Abs(Math.Round(t - 0.25f) - (t - 0.25f)),
+				SignalType.Sawtooth => // 2 * ( t/a - floor( t/a + 1/2 ) )
+					2f * (t - (float)Math.Floor(t + 0.5f)),
+				SignalType.Pulse => // http://en.wikipedia.org/wiki/Pulse_wave
+					(Math.Abs(Math.Sin(2 * Math.PI * t)) < 1.0 - 10E-3) ? (0) : (1),
+				SignalType.WhiteNoise => // http://en.wikipedia.org/wiki/White_noise
+					2f * (float)random.Next(int.MaxValue) / int.MaxValue - 1f,
+				SignalType.GaussNoise => // http://en.wikipedia.org/wiki/Gaussian_noise
+					(float)StatisticFunction.NORMINV((float)random.Next(int.MaxValue) / int.MaxValue, 0.0, 0.4),
+				SignalType.DigitalNoise => //Binary Bit Generators
+					random.Next(2),
+				SignalType.Linear => //Linear generator
+					random.Next(500) / 1000f,
+				SignalType.UserDefined => (getValueCallback == null) ? (0f) : getValueCallback(t),
+				_ => value
+			};
 
-				case SignalType.Pulse: // http://en.wikipedia.org/wiki/Pulse_wave
-					value = (Math.Abs(Math.Sin(2*Math.PI*t)) < 1.0 - 10E-3) ? (0) : (1);
-					break;
-				case SignalType.WhiteNoise: // http://en.wikipedia.org/wiki/White_noise
-					value = 2f *(float)random.Next(int.MaxValue) / int.MaxValue - 1f;
-					break;
-				case SignalType.GaussNoise: // http://en.wikipedia.org/wiki/Gaussian_noise
-					value = (float)StatisticFunction.NORMINV((float)random.Next(int.MaxValue) / int.MaxValue, 0.0, 0.4);
-					break;
-				case SignalType.DigitalNoise: //Binary Bit Generators
-					value = random.Next(2);
-					break;
-				case SignalType.Linear: //Linear generator
-					value = random.Next(500)/1000f;
-					break;
-					
-				case SignalType.UserDefined:
-					value = (getValueCallback==null) ? (0f): getValueCallback(t);
-					break;
-			}
-
-			return(invert*amplitude*value+offset);
+			return invert*amplitude*value+offset;
 		}
 
 		public float GetValue()
@@ -213,11 +200,7 @@ namespace SensorsInterface.Devices.Simulator
 		
 		public static double Mean(double[] values)
 		{
-			double tot = 0;
-			foreach (double val in values)
-				tot += val;
-
-			return (tot / values.Length);
+			return values.Sum() / values.Length;
 		}
 		
 		public static double StandardDeviation(double[] values)
@@ -228,11 +211,8 @@ namespace SensorsInterface.Devices.Simulator
 		public static double Variance(double[] values)
 		{
 			double m = Mean(values);
-			double result = 0;
-			foreach (double d in values)
-				result += Math.Pow((d - m), 2);
-
-			return (result / values.Length);
+			double result = values.Sum(d => Math.Pow(d - m, 2));
+			return result / values.Length;
 		}
 		
 		//
@@ -305,7 +285,7 @@ namespace SensorsInterface.Devices.Simulator
 
 		public static double NORMINV(double probability, double mean, double standard_deviation)
 		{
-			return (NORMSINV(probability) * standard_deviation + mean);
+			return NORMSINV(probability) * standard_deviation + mean;
 		}
 
 		public static double NORMINV(double probability, double[] values)

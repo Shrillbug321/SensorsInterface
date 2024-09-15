@@ -14,7 +14,6 @@ public abstract class Device
 	public abstract string Name { get; set; }
 	public abstract string Code { get; set; }
 	public abstract Dictionary<string, Signal> Signals { get; set; }
-	public abstract Dictionary<string, Signal> SignalsAvailable { get; set; }
 	public abstract Dictionary<string, Signal> SignalsChosen { get; set; }
 	public string StandardizedValue { get; protected set; } = "";
 	protected abstract bool[] ChannelsEnable{ get; set; }
@@ -70,8 +69,9 @@ public abstract class Device
 		Network,
 		None
 	}
-	public Dictionary<int, UdpClient> sockets = new();
-	public Dictionary<int, IPEndPoint> IpEndPoints = new();
+
+	protected Dictionary<int, UdpClient> sockets = new();
+	protected Dictionary<int, IPEndPoint> IpEndPoints = new();
 	public int retrievePort = 8053;
 	public int sendPort = 8054;
 	private NamedPipeServerStream? pipe;
@@ -81,11 +81,6 @@ public abstract class Device
 
 	protected int DeviceContext { get; set; }
 	protected int ErrorCounter { get; set; }
-
-	protected Device()
-	{
-	}
-
 	public abstract ErrorCode Initialize();
 	public abstract ErrorCode SetSignal(string signals);
 	public abstract ErrorCode SetUnit(string unit);
@@ -95,7 +90,7 @@ public abstract class Device
 	public abstract ErrorCode StartMeasurement();
 	public abstract ErrorCode CheckDeviceState();
 
-	public virtual string Retrieve()
+	public string Retrieve()
 	{
 		return RetrieveData switch
 		{
@@ -105,9 +100,9 @@ public abstract class Device
 		};
 	}
 
-	public virtual void SetChannelState(int channelNumber, bool state)
+	public void SetChannelState(int channelNumber, bool newState)
 	{
-		ChannelsEnable[channelNumber] = state;
+		ChannelsEnable[channelNumber] = newState;
 	}
 	protected abstract string RetrieveFromDriver();
 	protected abstract string RetrieveFromNetwork();
@@ -123,6 +118,7 @@ public abstract class Device
 				SendByNetwork(message);
 				break;
 			case SendDataMode.None:
+			default:
 				break;
 		}
 	}
@@ -151,8 +147,8 @@ public abstract class Device
 		int port = mode == "Retrieve" ? retrievePort : sendPort;
 		return CreateSocket(port);
 	}
-	
-	public ErrorCode CreateSocket(int port)
+
+	private ErrorCode CreateSocket(int port)
 	{
 		if (sockets.ContainsKey(port))
 			return ErrorCode.Success;
@@ -198,21 +194,11 @@ public abstract class Device
 			ShowMessageBox(ErrorCode.SignalIsChosen, signal);
 			return SignalsChosen.FindKeyByIndex(indexOfChangedChannel);
 		}
+		SignalsChosen.Remove(SignalsChosen.FindKeyByIndex(indexOfChangedChannel));
 		SignalsChosen.Add(signal, Signals[signal]);
 		SignalsChosen[signal].Id = index;
-		//SignalsChosen[index] = ;
-		//SignalsChosen.Add(signal);
-		/*if (!Signals.ContainsKey(signal))
-			Signals.Add(signal, new Dictionary<DateTime, double>());
-		SignalsAvailable = SignalsAvailable.Where(s => s != signal).ToList();*/
 		if (RetrieveData == RetrieveDataMode.Driver)
 			SetSignals(SignalsChosen.Values.ToList());
 		return "";
-	}
-	public void DeleteSignalChosen(string signal)
-	{
-		SignalsChosen.Remove(signal);
-		//Signals.Remove(Signals.Find(s=>s.Name==signal));
-		//SignalsAvailable.Add(signal);
 	}
 }

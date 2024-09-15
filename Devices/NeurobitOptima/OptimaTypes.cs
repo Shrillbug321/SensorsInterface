@@ -1,9 +1,4 @@
-namespace SensorsInterface.Devices;
-
-public class OptimaTypes
-{
-	
-}
+namespace SensorsInterface.Devices.NeurobitOptima;
 
 public class TStartMeasurement
 {

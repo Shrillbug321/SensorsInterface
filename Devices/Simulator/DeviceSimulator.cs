@@ -37,13 +37,6 @@ public class DeviceSimulator : Device
 	};
 
 	public override Dictionary<string, Signal> SignalsChosen { get; set; } = [];
-	public override Dictionary<string, Signal> SignalsAvailable { get; set; } = new()
-	{
-		["RESP_TEMP"] = new Signal
-		{
-			Name = "RESP_TEMP", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
-		}
-	};
 
 	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
 	public override int ChannelsNumber { get; set; } = 4;
@@ -93,8 +86,6 @@ public class DeviceSimulator : Device
 	
 	public override Error.ErrorCode Initialize()
 	{
-		SignalsAvailable = new Dictionary<string, Signal>(Signals);
-		SignalsAvailable = SignalsAvailable.Where(s => !Signals.ContainsKey(s.Key)).ToDictionary();
 		signalGenerator = new SignalGenerator[ChannelsNumber];
 		RangeStates = [..new RangeState[4]];
 		DateTime now = DateTime.Now;
@@ -104,7 +95,6 @@ public class DeviceSimulator : Device
 			{
 				Frequency = float.Parse(SignalsChosen.FindValueByIndex(i).Frequency.ToString())
 			};
-			//if (i > 0) signalGenerator[i].Synchronize(signalGenerator[0]);
 			ticks.Add(now.AddMicroseconds(1000000 / SignalsChosen.FindValueByIndex(i).Frequency) - now);
 			lastTime.Add(now);
 		}
@@ -146,14 +136,12 @@ public class DeviceSimulator : Device
 	public override Error.ErrorCode SetFrequency(string signal, double frequency)
 	{
 		DateTime now = DateTime.Now;
-		//SignalsChosen.Find()
 		int i = SignalsChosen.FindIndexByKey(signal);
 		SignalsChosen[signal].Frequency = frequency;
 		signalGenerator[i] = new SignalGenerator(SignalType.Sine)
 		{
 			Frequency = float.Parse(SignalsChosen.FindValueByIndex(i).Frequency.ToString())
 		};
-		//if (i > 0) signalGenerator[i].Synchronize(signalGenerator[0]);
 		ticks[i] = now.AddMicroseconds(1000000 / frequency) - now;
 		return Error.ErrorCode.Success;
 	}
@@ -192,7 +180,6 @@ public class DeviceSimulator : Device
 	protected override string RetrieveFromNetwork()
 	{
 		IPEndPoint endPoint = IpEndPoints[retrievePort];
-		//IpEndPoints[retrievePort] = endPoint;
 		string retrieved = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
 		
 		string[] split = retrieved.Split('@');
@@ -203,7 +190,7 @@ public class DeviceSimulator : Device
 		for (int j = 0; j < channels.Length; j++)
 		{
 			string[] s = channels[j].Split('=');
-			if (!ChannelsEnable[j]) continue; // || !SignalsChosen.Contains(s[0])) continue;
+			if (!ChannelsEnable[j]) continue;
 			s[1] = s[1].Split('#')[0];
 			if (!SignalsChosen.ContainsKey(s[0])) continue;
 			SignalsChosen[s[0]].Values.Add(date.DateTime, double.Parse(s[1]));
@@ -232,8 +219,8 @@ public class DeviceSimulator : Device
 	private int disconnect;
 	public override Error.ErrorCode CheckDeviceState()
 	{
-		return disconnect++ >= 20 ? Error.ErrorCode.DeviceIsDisconnected : Error.ErrorCode.Success;
-		//return Error.ErrorCode.Success;
+		//return disconnect++ >= 20 ? Error.ErrorCode.DeviceIsDisconnected : Error.ErrorCode.Success;
+		return Error.ErrorCode.Success;
 		//return Error.ErrorCode.DeviceIsDisconnected;
 	}
 }

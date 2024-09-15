@@ -141,11 +141,6 @@ public partial class MainWindow
 				switch (device.State)
 				{
 					case DeviceState.Initialized:
-						/*if (GetInputByDeviceName<RadioButton>("RetrieveDataNone", device.Code).IsChecked == true)
-						                        ShowMessageBox(ErrorCode.RetrieveDataModeNotSelected);*/
-
-						/*if ((GetInputByDeviceName<RadioButton>("SendDataNone", device.Code)).IsChecked == true)
-							ShowMessageBox(ErrorCode.SendDataModeNotSelected);*/
 						device.State = DeviceState.Working;
 						button.Content = "Zatrzymaj pomiary";
 						break;
@@ -171,7 +166,6 @@ public partial class MainWindow
 					{
 						Orientation = Orientation.Horizontal,
 						Name = $"{device.Code}StackPanel",
-						//Margin = new Thickness(10, i++ * deviceHeight, 0, 0),
 						Margin = new Thickness(2 * windowMargin, 0, 0, 2 * windowMargin),
 						Children =
 						{
@@ -198,7 +192,6 @@ public partial class MainWindow
 					CreateHUDDevice(device)
 				}
 			};
-			//Canvas.SetLeft(tb, ellipseSize);
 			MainGrid.Children.Add(panel);
 		}
 		MainGrid.Children.Add(new StackPanel
@@ -277,7 +270,6 @@ public partial class MainWindow
 				Name = $"{device.Code}Channel{i}",
 				Width = 800,
 				Height = 70,
-				//Margin = new Thickness(0, 30, 0, 0),
 				Content = new WrapPanel
 				{
 					Orientation = Orientation.Horizontal,

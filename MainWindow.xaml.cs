@@ -1,12 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Shapes;
-using System.Windows.Threading;
 using SensorsInterface.Devices;
 using SensorsInterface.Devices.NeurobitOptima;
 using SensorsInterface.Devices.Simulator;
@@ -33,9 +30,6 @@ public partial class MainWindow
 	];
 
 	private List<string> connectedApplications = [];
-	
-	/*private NamedPipeServerStream? pipe;
-	private StreamWriter pipeWriter;*/
 
 	public MainWindow()
 	{
@@ -45,14 +39,6 @@ public partial class MainWindow
 		InitializeComponent();
 		Global.window = this;
 
-		/*Device simulator = new DeviceSimulator();
-		devices.Add(simulator);*/
-		/*Device optima = new NeurobitOptima();
-		devices.Add(optima);*/
-		//lastAddedDevices.Add(optima);
-		//GetConnectedDevices();
-		//InitializeDevices();
-		
 		CreateHUD();
 		//devices.Add(hiddenDevices[0]);
 		Task.Run(() =>
@@ -60,11 +46,9 @@ public partial class MainWindow
 			//Thread.Sleep(1000);
 			devices.Add(hiddenDevices[1]);
 		});
-		
+
 		Closing += AddDeviceClosing;
 
-		//Application.Current.Dispatcher.BeginInvoke((Action)(CreateHUD));
-		//Application.Current.Dispatcher.InvokeAsync((Action)delegate{
 		Task.Run(() =>
 		{
 			while (true)
@@ -79,10 +63,8 @@ public partial class MainWindow
 				CheckDevicesConnection();
 				CheckApplicationsConnection();
 				lastAddedDevices.Clear();
-				//Task.Delay(5);
 			}
 		});
-		//});
 	}
 
 	private void AddDeviceClosing(object? sender, CancelEventArgs cancelEventArgs)
@@ -128,7 +110,7 @@ public partial class MainWindow
 			device.StateColor = new SolidColorBrush(Color.FromRgb(0, 128, 0));
 		}
 	}
-	
+
 	private void RetrieveFromDevices()
 	{
 		foreach (Device device in workingDevices)
@@ -167,14 +149,14 @@ public partial class MainWindow
 		Process[] processes = Process.GetProcesses();
 		foreach (string application in connectedApplications.ToList())
 		{
-			if (processes.FirstOrDefault(p=>p.ProcessName == application, null)==null)
+			if (processes.FirstOrDefault(p => p.ProcessName == application, null) == null)
 			{
 				ShowMessageBox(ErrorCode.ApplicationIsDisconnected, application);
 				connectedApplications.Remove(application);
 			}
 		}
 	}
-	
+
 	private void FindWorkingDevices()
 	{
 		workingDevices = devices.Where(d => d.State == DeviceState.Working).ToList();
@@ -182,13 +164,13 @@ public partial class MainWindow
 
 	private async void SendDataByPipe_OnChecked(object sender, RoutedEventArgs e)
 	{
-		App.Current.MainWindow.Title = "Sensors Interface (pipe)";
+		Application.Current.MainWindow.Title = "Sensors Interface (pipe)";
 		Device device = GetDeviceByInputName<RadioButton>(sender);
 		ErrorCode code = await device.CreatePipe();
 		if (code != ErrorCode.Success)
 		{
 			ShowMessageBox(code);
-			App.Current.MainWindow.Title = "Sensors Interface";
+			Application.Current.MainWindow.Title = "Sensors Interface";
 		}
 		else
 		{
@@ -200,7 +182,8 @@ public partial class MainWindow
 	private void SendDataByUdp_OnChecked(object sender, RoutedEventArgs e)
 	{
 		if (Global.IsRunVRTherapy)
-			MessageBox.Show("Aplikacja odbierająca to VRTherapy. W takim przypadku zalecane jest użycie potoku.", "Zalecany potok", MessageBoxButton.OK, MessageBoxImage.Information);
+			MessageBox.Show("Aplikacja odbierająca to VRTherapy. W takim przypadku zalecane jest użycie potoku.",
+				"Zalecany potok", MessageBoxButton.OK, MessageBoxImage.Information);
 		Device device = GetDeviceByInputName<RadioButton>(sender);
 		ErrorCode code = device.CreateSocket("Send");
 		if (code != ErrorCode.Success)
@@ -208,7 +191,7 @@ public partial class MainWindow
 		else
 		{
 			device.SendData = SendDataMode.Network;
-			App.Current.MainWindow.Title = "Sensors Interface (network)";
+			Application.Current.MainWindow.Title = "Sensors Interface (network)";
 			connectedApplications.Add("TherapyDesktopV2");
 		}
 	}
@@ -241,8 +224,6 @@ public partial class MainWindow
 		string signal = Util.FindChild<ComboBox>(MainGrid, $"{device.Code}Channel{comboBox.Name[^1]}")
 			.SelectedItem.ToString();
 		device.SetFrequency(signal, frequency);
-		//device.signalFrequencies[signal] = frequency;
-		//global.SimulatorSocket.Send(  Encoding.ASCII.GetBytes($"frequency:{signal}@{frequency}"));
 	}
 
 	private void ChannelFunctionComboBoxItemChanged(object sender, SelectionChangedEventArgs e)
@@ -254,7 +235,7 @@ public partial class MainWindow
 		Util.FindChild<TextBlock>(MainGrid, $"ChannelUnit{comboBox.Name[^1]}").Text =
 			device.ChannelFunctionsUnits[translated];
 		device.ChannelFunctionsChosen[int.Parse(comboBox.Name[^1].ToString())] = translated;
-		
+
 		GroupBox channelGroup = Util.FindChild<GroupBox>(MainGrid, $"{device.Code}Channel{comboBox.Name[^1]}");
 		WrapPanel frequencyWrapPanel = (channelGroup.Content as WrapPanel).Children[7] as WrapPanel;
 		frequencyWrapPanel.Visibility = translated == "Voltage" ? Visibility.Visible : Visibility.Hidden;
@@ -285,7 +266,7 @@ public partial class MainWindow
 			}
 		});
 	}
-	
+
 	public static string Format(double number)
 	{
 		return $"{Math.Round(number, 4):f}";
@@ -310,15 +291,13 @@ public partial class MainWindow
 			device.RangeStates[number] = RangeState.Normal;
 		}
 	}
-
-//
+	
 	private void RetrieveDataByDriver_OnChecked(object sender, RoutedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<RadioButton>(sender);
 		device.RetrieveData = RetrieveDataMode.Driver;
 	}
-
-//
+	
 	private void RetrieveDataByUdp_OnChecked(object sender, RoutedEventArgs e)
 	{
 		Device device = GetDeviceByInputName<RadioButton>(sender);
@@ -331,6 +310,8 @@ public partial class MainWindow
 
 	private void RetrieveDataNone_OnChecked(object sender, RoutedEventArgs e)
 	{
+		Device device = GetDeviceByInputName<RadioButton>(sender);
+		device.RetrieveData = RetrieveDataMode.None;
 	}
 
 	private void RetrieveDataByUdpPort_OnTextChanged(object sender, TextChangedEventArgs e)
@@ -348,7 +329,7 @@ public partial class MainWindow
 		Device device = GetDeviceByInputName<TextBox>(sender);
 		device.sendPort = int.Parse(tb.Text);
 	}
-	
+
 	private Device GetDeviceByInputName<T>(object sender) where T : Control
 	{
 		T input = sender as T;

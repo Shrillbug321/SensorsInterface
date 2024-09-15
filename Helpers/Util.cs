@@ -121,7 +121,7 @@ public static class Util
 	public static KeyValuePair<K,V> FindByIndex<K, V>(this Dictionary<K, V> dictionary, int index, KeyValuePair<K,V> defaultObject = default)
 	{
 		int i = 0;
-		foreach (var pair in dictionary.Where(pair => i++ == index))
+		foreach (var pair in dictionary.Where(_ => i++ == index))
 			return pair;
 		return defaultObject;
 	}
