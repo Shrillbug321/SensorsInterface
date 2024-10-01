@@ -25,20 +25,12 @@ public class DeviceSimulator : Device
 		["EMG"] = new Signal
 		{
 			Name = "EMG", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
-		},
-		["RESP_TEMP"] = new Signal
-		{
-			Name = "RESP_TEMP", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
-		},
-		["RESP_BELT"] = new Signal
-		{
-			Name = "RESP_BELT", Frequency = 62.5, Values = new Dictionary<DateTime, double>()
 		}
 	};
 
 	public override Dictionary<string, Signal> SignalsChosen { get; set; } = [];
 
-	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
+	protected override List<bool> ChannelsEnable { get; set; } = [true, true, true, true];
 	public override int ChannelsNumber { get; set; } = 4;
 	public override List<double> Frequencies { get; set; } = [62.5, 125, 250, 500, 1000, 2000];
 
@@ -199,18 +191,6 @@ public class DeviceSimulator : Device
 		return retrieved;
 	}
 
-	protected override void SendByPipe(string message)
-	{
-		pipeWriter.WriteLine(message);
-	}
-
-	protected override void SendByNetwork(string message)
-	{
-		byte[] sendBytes = Encoding.ASCII.GetBytes(message);
-		sockets[sendPort].Connect("localhost", sendPort);
-		sockets[sendPort].Send(sendBytes, sendBytes.Length);
-	}
-
 	public override void Close()
 	{
 		//Simulator don't need closing
@@ -219,6 +199,7 @@ public class DeviceSimulator : Device
 	private int disconnect;
 	public override Error.ErrorCode CheckDeviceState()
 	{
+		if (State == DeviceState.Initialized) ErrorCounter++;
 		//return disconnect++ >= 20 ? Error.ErrorCode.DeviceIsDisconnected : Error.ErrorCode.Success;
 		return Error.ErrorCode.Success;
 		//return Error.ErrorCode.DeviceIsDisconnected;

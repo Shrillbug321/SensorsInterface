@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Windows.Media;
 using SensorsInterface.Helpers;
 using static SensorsInterface.Helpers.Error;
@@ -16,7 +17,7 @@ public abstract class Device
 	public abstract Dictionary<string, Signal> Signals { get; set; }
 	public abstract Dictionary<string, Signal> SignalsChosen { get; set; }
 	public string StandardizedValue { get; protected set; } = "";
-	protected abstract bool[] ChannelsEnable{ get; set; }
+	protected abstract List<bool> ChannelsEnable{ get; set; }
 	public abstract int ChannelsNumber { get; set; }
 	public abstract List<double> Frequencies { get; set; }
 	public abstract List<string> ChannelFunctions { get; set; }
@@ -80,7 +81,7 @@ public abstract class Device
 	protected abstract string DriverPath { get; }
 
 	protected int DeviceContext { get; set; }
-	protected int ErrorCounter { get; set; }
+	public int ErrorCounter { get; set; }
 	public abstract ErrorCode Initialize();
 	public abstract ErrorCode SetSignal(string signals);
 	public abstract ErrorCode SetUnit(string unit);
@@ -123,8 +124,17 @@ public abstract class Device
 		}
 	}
 
-	protected abstract void SendByPipe(string message);
-	protected abstract void SendByNetwork(string message);
+	protected virtual void SendByPipe(string message)
+	{
+		pipeWriter.WriteLine(message);
+	}
+
+	protected virtual void SendByNetwork(string message)
+	{
+		byte[] sendBytes = Encoding.ASCII.GetBytes(message);
+		sockets[sendPort].Connect("localhost", sendPort);
+		sockets[sendPort].Send(sendBytes, sendBytes.Length);
+	}
 	
 	public abstract void Close();
 	

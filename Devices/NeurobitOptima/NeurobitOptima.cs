@@ -2,7 +2,6 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Windows;
 using static SensorsInterface.Native.NativeMethods;
 using static SensorsInterface.Helpers.Error;
 
@@ -69,7 +68,7 @@ public unsafe partial class NeurobitOptima : Device
 
 	private DevContextInfo devInfo;
 
-	protected override bool[] ChannelsEnable { get; set; } = [true, true, true, true];
+	protected override List<bool> ChannelsEnable { get; set; } = [true, true, true, true];
 	public override int ChannelsNumber { get; set; } = 4;
 
 	//Fields only for Optima
@@ -234,11 +233,8 @@ public unsafe partial class NeurobitOptima : Device
 				{
 					if (!IsValueProperlyGet(header, i))
 					{
-						MessageBoxResult result = ShowMessageBox(ErrorCode.DeviceMeasurementReadError, $"{header};");
 						if (ErrorCounter++ == 10)
 							return $"Optima Error {header}";
-						if (result == MessageBoxResult.Yes)
-							continue;
 					}
 				}
 
@@ -303,17 +299,6 @@ public unsafe partial class NeurobitOptima : Device
 		}
 
 		return message;
-	}
-
-	protected override void SendByPipe(string message)
-	{
-		pipeWriter.WriteLine(message);
-	}
-
-	protected override void SendByNetwork(string message)
-	{
-		byte[] sendBytes = Encoding.ASCII.GetBytes(message);
-		sockets[sendPort].Send(sendBytes, sendBytes.Length);
 	}
 
 	public override void Close()

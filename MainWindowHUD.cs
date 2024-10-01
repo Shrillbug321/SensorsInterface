@@ -184,6 +184,12 @@ public partial class MainWindow
 										Text = device.Name,
 										Margin = new Thickness(ellipseSize + 5, 0, 0, 0)
 									},
+									new TextBlock
+									{
+										Text = "⚠ Błędów: 0",
+										Name = $"{device.Code}ErrorIndicator",
+										Margin = new Thickness(200, 0, 0, 0)
+									},
 									button
 								}
 							}

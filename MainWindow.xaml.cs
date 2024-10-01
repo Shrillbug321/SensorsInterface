@@ -262,6 +262,7 @@ public partial class MainWindow
 					double value = double.Parse(channelValue.Text);
 					WrapPanel rangeWrapPanel = (channel.Children[5] as WrapPanel).Children[1] as WrapPanel;
 					UpdateChannelValueIndicator(rangeWrapPanel, device, value, j1);
+					UpdateErrorIndicator(device);
 				}
 			}
 		});
@@ -272,6 +273,12 @@ public partial class MainWindow
 		return $"{Math.Round(number, 4):f}";
 	}
 
+	private void UpdateErrorIndicator(Device device)
+	{
+		var devicePanel = MainGrid.Children.OfType<StackPanel>().First(p=>p.Name==$"{device.Code}Panel").Children[1] as WrapPanel;
+		var textBlock = (devicePanel.Children[0] as Canvas).Children[2] as TextBlock;
+		textBlock.Text = $"⚠ Błędów: {device.ErrorCounter}";
+	}
 	private void UpdateChannelValueIndicator(WrapPanel wrapPanel, Device device, double value, int number)
 	{
 		double min = double.Parse(Util.FindChild<TextBox>(wrapPanel, $"MinRangeValue{number}").Text);
