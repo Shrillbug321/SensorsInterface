@@ -171,9 +171,9 @@ public class DeviceSimulator : Device
 
 	protected override string RetrieveFromNetwork()
 	{
-		IPEndPoint endPoint = IpEndPoints[retrievePort];
-		string retrieved = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
-		
+		//Część pobierająca dane wywołana z nadklasy
+		string retrieved = base.RetrieveFromNetwork(false);
+		//Część konwertująca
 		string[] split = retrieved.Split('@');
 		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
 		string[] channels = split[1].Split(';')[..^1];
@@ -185,7 +185,7 @@ public class DeviceSimulator : Device
 			if (!ChannelsEnable[j]) continue;
 			s[1] = s[1].Split('#')[0];
 			if (!SignalsChosen.ContainsKey(s[0])) continue;
-			SignalsChosen[s[0]].Values.Add(date.DateTime, double.Parse(s[1]));
+			SignalsChosen[s[0]].Values.Add(date2, double.Parse(s[1]));
 		}
 		
 		return retrieved;

@@ -277,13 +277,15 @@ public unsafe partial class NeurobitOptima : Device
 
 	protected override string RetrieveFromNetwork()
 	{
-		IPEndPoint endPoint = IpEndPoints[retrievePort];
-		string message = "";
-		string retrieved = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
-
+		//Część pobierająca dane wywołana z nadklasy
+		string retrieved = base.RetrieveFromNetwork(false);
 		if (retrieved == "")
+		{
 			ErrorCounter++;
-
+			return "";
+		}
+		//Część konwertująca
+		string message = "";
 		char[] separator = { '=', '#' };
 		string[] split = retrieved.Split('@');
 		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0])).DateTime.AddHours(2);

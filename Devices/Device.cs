@@ -106,8 +106,41 @@ public abstract class Device
 		ChannelsEnable[channelNumber] = newState;
 	}
 	protected abstract string RetrieveFromDriver();
-	protected abstract string RetrieveFromNetwork();
 
+	protected virtual string RetrieveFromNetwork()
+	{
+		IPEndPoint endPoint = IpEndPoints[retrievePort];
+		return Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
+	}
+	
+	protected virtual string RetrieveFromNetwork(bool convert)
+	{
+		IPEndPoint endPoint = IpEndPoints[retrievePort];
+		string retrieved = Encoding.ASCII.GetString(sockets[retrievePort].Receive(ref endPoint));
+		
+		if (convert)
+			DefaultConverter(retrieved);
+		
+		return retrieved;
+	}
+
+	protected void DefaultConverter(string retrieved)
+	{
+		string[] split = retrieved.Split('@');
+		DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(split[0]));
+		string[] channels = split[1].Split(';')[..^1];
+		DateTime date2 = date.DateTime.AddHours(2);
+		Console.WriteLine(date2);
+		for (int j = 0; j < channels.Length; j++)
+		{
+			string[] s = channels[j].Split('=');
+			if (!ChannelsEnable[j]) continue;
+			s[1] = s[1].Split('#')[0];
+			if (!SignalsChosen.ContainsKey(s[0])) continue;
+			SignalsChosen[s[0]].Values.Add(date.DateTime, double.Parse(s[1]));
+		}
+	}
+	
 	public void Send(string message)
 	{
 		switch (SendData)
